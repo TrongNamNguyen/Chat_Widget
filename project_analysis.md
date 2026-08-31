@@ -77,7 +77,7 @@ graph TB
     end
     
     subgraph "⚙️ Backend - Python"
-        SA["Sanic API<br/>(Web Framework)"]
+        SA["FastAPI<br/>(Web Framework)"]
         WK["Worker<br/>(Xử lý nền)"]
     end
     
@@ -124,7 +124,7 @@ graph TB
 | Công nghệ | Vai trò | Ví dụ dễ hiểu |
 |---|---|---|
 | **Python** | Ngôn ngữ chính cho backend | "Ngôn ngữ lập trình mà bạn đã học" |
-| **Sanic** | Web framework async cho API | Giống Flask/FastAPI nhưng nhanh hơn nhờ async |
+| **FastAPI** | Web framework async cho API | Framework Python hiện đại, tự động tạo docs, tích hợp Pydantic |
 | **PostgreSQL 15** | Database chính lưu mọi thứ | "Kho dữ liệu chính của hệ thống" |
 | **pgvector** | Extension PostgreSQL cho vector search | Giúp tìm kiếm tài liệu "giống nghĩa", không chỉ "giống chữ" |
 | **Redis** | Cache, message queue, rate limit | "Bộ nhớ tạm siêu nhanh" — tăng tốc hệ thống |
@@ -150,7 +150,7 @@ graph TB
 ```mermaid
 graph TB
     U["👤 Người dùng"] --> W["💬 Chat Widget<br/>(Frontend)"]
-    W --> API["🌐 Chat API<br/>(Sanic)"]
+    W --> API["🌐 Chat API<br/>(FastAPI)"]
     
     API --> IAM["🔑 Identity Context<br/>Xác thực: Bạn là ai?"]
     IAM --> POL["🛡️ Policy Engine<br/>Phân quyền: Bạn được xem gì?"]
@@ -340,7 +340,7 @@ gantt
 
 - [ ] **Audit module**: ghi log opaque identity, action, decision, time
 - [ ] **Model Registry**: cấu hình model profile, route
-- [ ] API skeleton: Sanic routes, middleware, error handling
+- [ ] API skeleton: FastAPI routes, middleware, error handling
 - [ ] Setup CI/CD pipeline cơ bản
 - [ ] Setup dev/staging environment
 - [ ] Secret management (không hardcode password)
