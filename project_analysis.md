@@ -1,10 +1,3 @@
-# 📚 Phân Tích Dự Án DATAQA-001 — Nền Tảng Hỏi Đáp & Khai Phá Dữ Liệu
-
-> [!NOTE]
-> Tài liệu này là bản phân tích dễ hiểu dành cho sinh viên CNTT, giúp bạn nắm rõ dự án từ tài liệu gốc [DATAQA-001_Dac-ta-yeu-cau-va-Roadmap.docx](file:///c:/Chat_Widget/DATAQA-001_Dac-ta-yeu-cau-va-Roadmap.docx). Mình sẽ giải thích bằng ngôn ngữ đơn giản nhất, kèm ví dụ thực tế.
-
----
-
 ## 1. 🎯 Phát Biểu Lại Bài Toán
 
 ### Vấn đề thực tế là gì?
