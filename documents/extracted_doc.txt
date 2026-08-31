@@ -1,0 +1,1266 @@
+ĐẶC TẢ YÊU CẦUVÀ ROADMAP
+Nền tảng Hỏi đáp & Khai phá Dữ liệu đa dự án
+ 
+MÃ TÀI LIỆU
+DATAQA-001
+PHIÊN BẢN
+1.0
+TRẠNG THÁI
+Draft for Research & Development
+NGÀY BAN HÀNH
+22/08/2026
+ĐỐI TƯỢNG
+PO/BA, Data Owner, Architect, Dev, AI/ML, QA, DevSecOps, Security
+Khuyến nghị kiến trúcXây Python Chat Control Plane do đội ngũ nội bộ sở hữu. LLM chỉ hỗ trợ hiểu ý định, lập QuerySpec và diễn đạt; IAM, Policy Engine, Semantic Catalog, Safe Query Engine và Evidence Pack mới quyết định quyền và tính hợp lệ của câu trả lời.
+TÀI LIỆU NỘI BỘ  •  DÙNG CHO NGHIÊN CỨU VÀ LẬP KẾ HOẠCH PHÁT TRIỂN
+
+Mục lục
+Cấu trúc tài liệu phục vụ tra cứu nhanh. Navigation Pane của Word sử dụng các heading tương ứng.
+1. Tóm tắt điều hành
+2. Thông tin và mục đích tài liệu
+3. Bối cảnh và vấn đề cần giải quyết
+4. Mục tiêu, chỉ số thành công và phạm vi
+5. Nguyên tắc và quyết định kiến trúc
+6. Khái niệm và stakeholder
+7. Use case nghiệp vụ
+8. Yêu cầu chức năng
+9. Yêu cầu phi chức năng
+10. Kiến trúc kỹ thuật mục tiêu
+11. Domain contract cốt lõi
+12. Mô hình dữ liệu và API mức cao
+13. Chiến lược mã nguồn mở
+14. Roadmap nghiên cứu và phát triển
+15. Product Backlog và ưu tiên
+16. Kế hoạch đánh giá và kiểm thử
+17. Cơ cấu đội ngũ và cách tổ chức
+18. Risk Register
+19. Điều kiện sẵn sàng và kế hoạch 30 ngày đầu
+20. Cổng nghiệm thu và Definition of Done cấp hệ thống
+21. Các vấn đề phải được Product và Architecture Board chốt
+Phụ lục A. Nguồn nghiên cứu chính thức
+Phụ lục B. Security invariants
+
+1. Tóm tắt điều hành
+Tài liệu này là đặc tả yêu cầu và roadmap nghiên cứu, phát triển nền tảng hỏi đáp và khai phá dữ liệu bằng ngôn ngữ tự nhiên, có thể tái sử dụng cho nhiều dự án. Nền tảng kết hợp hai nguồn tri thức chính: dữ liệu có cấu trúc từ PostgreSQL hoặc data mart được phê duyệt, và tri thức phi cấu trúc từ tài liệu, quy trình, quy định, biểu mẫu và hồ sơ nội bộ.
+Quyết định kiến trúc cốt lõi: xây Python Chat Control Plane do đội ngũ nội bộ sở hữu; LLM chỉ hỗ trợ hiểu ý định, lập QuerySpec và diễn đạt. IAM, Policy Engine, Semantic Catalog, Safe Query Engine, PostgreSQL và Evidence Pack mới là các thành phần quyết định quyền truy cập, dữ liệu được sử dụng và tính hợp lệ của câu trả lời.
+Phiên bản đầu được triển khai theo mô hình modular monolith gồm một Sanic API, một worker xử lý ingestion/evaluation và các module domain độc lập. PostgreSQL 15, pgvector, Redis và object storage được ưu tiên để phù hợp hệ sinh thái hiện tại. Các sản phẩm mã nguồn mở được đặt sau adapter và policy enforcement point; không sản phẩm nào được coi là security boundary mặc định.
+Mục tiêu của chương trình là đạt ba mốc:
+Proof of Concept chứng minh độ chính xác trên một tập câu hỏi và dữ liệu nhỏ.
+Production Pilot vận hành an toàn với một dự án và nhóm người dùng giới hạn.
+Multi-project Platform cho phép onboarding dự án mới chủ yếu bằng cấu hình, semantic package, policy bundle và connector.
+2. Thông tin và mục đích tài liệu
+2.1. Thông tin kiểm soát
+Thuộc tính
+Giá trị
+Mã tài liệu
+DATAQA-001
+Tên tài liệu
+Đặc tả yêu cầu và Roadmap xây dựng Nền tảng Hỏi đáp & Khai phá Dữ liệu
+Phiên bản
+1.0
+Trạng thái
+Draft for Research & Development
+Ngày ban hành
+22/08/2026
+Đối tượng đọc
+PO/BA, Data Owner, Architect, Backend, Frontend, AI/ML, QA, DevSecOps, Security
+Mức độ
+Internal Use
+
+2.2. Mục đích
+Tài liệu dùng để:
+Thống nhất phạm vi và nguyên tắc giữa product, nghiệp vụ, dữ liệu, an toàn thông tin và kỹ thuật.
+Làm đầu vào cho nghiên cứu giải pháp mã nguồn mở và các Architecture Decision Record.
+Chuyển yêu cầu thành EPIC, backlog, acceptance gate và kế hoạch triển khai.
+Làm cơ sở xây dựng API contract, data model, policy, semantic catalog và golden evaluation dataset.
+Làm checklist nghiệm thu trước pilot và production.
+2.3. Đối tượng sử dụng
+Product Owner và Business Analyst: xác định use case, ưu tiên và acceptance.
+Data Owner và chuyên gia nghiệp vụ: định nghĩa KPI, glossary, nguồn và expected result.
+Solution Architect/Tech Lead: sở hữu kiến trúc, domain contract và ADR.
+Backend/AI/Data Engineer: triển khai orchestration, query, RAG, model routing và evaluation.
+Frontend Engineer: xây widget SDK và Admin Control Plane.
+QA/Security Tester: xây functional, permission, adversarial và regression suite.
+DevOps/SRE: triển khai, monitoring, backup, secret, incident và capacity.
+Security/Privacy Officer: phê duyệt classification, egress, retention và release gate.
+3. Bối cảnh và vấn đề cần giải quyết
+Dữ liệu nghiệp vụ nằm phân tán trong nhiều database, bảng, dịch vụ và tài liệu. Người dùng không biết cấu trúc vật lý và thường phải phụ thuộc đội kỹ thuật để lập báo cáo. Những vấn đề chính gồm:
+Thời gian tổng hợp số liệu và tra cứu quy định kéo dài.
+KPI dễ bị định nghĩa không nhất quán giữa các báo cáo.
+Cùng một câu hỏi nhưng người dùng khác nhau cần phạm vi và mức chi tiết khác nhau.
+Dữ liệu có cấu trúc và căn cứ tài liệu chưa được kết hợp trong một câu trả lời có thể kiểm chứng.
+Text-to-SQL tự do có thể tạo truy vấn sai, nặng hoặc vượt quyền.
+Retrieval vector nếu không gắn ACL có thể làm lộ tài liệu chéo tenant/khoa/phòng.
+LLM bên ngoài có thể nhận schema, prompt, tài liệu hoặc kết quả nhạy cảm ngoài chủ đích.
+Câu trả lời AI khó tái tạo nếu không lưu policy, semantic, prompt, model và evidence version.
+Nền tảng cần là lớp trung gian được quản trị giữa người dùng, IAM, nguồn dữ liệu, kho tài liệu và model. Prompt không được coi là cơ chế bảo mật. Mọi quyền phải được thực thi bằng code, policy và database control.
+4. Mục tiêu, chỉ số thành công và phạm vi
+4.1. Mục tiêu nghiệp vụ
+Cho phép người dùng hỏi dữ liệu bằng tiếng Việt tự nhiên.
+Trả lời đúng tenant/site/branch/khoa/phòng và quyền của người hỏi.
+Kết hợp số liệu có cấu trúc với quy định hoặc tài liệu liên quan.
+Hiển thị scope, thời điểm dữ liệu, evidence và limitation.
+Cung cấp cách diễn đạt và gợi ý hành động phù hợp vai trò.
+Giảm phụ thuộc vào đội kỹ thuật đối với các câu hỏi đã được semantic hóa.
+Tạo nền tảng dùng lại cho trợ lý nghiệp vụ ở nhiều dự án.
+4.2. Mục tiêu kỹ thuật
+Module hóa rõ ràng và có interface thay thế được.
+Tách platform core khỏi cấu hình dự án.
+IAM hiện tại là nguồn sự thật duy nhất.
+LLM không trực tiếp có database credential và không chạy raw SQL.
+Policy được kiểm tra trước schema projection, retrieval, query, model egress và output.
+Mọi câu trả lời có Evidence Pack và trace ID.
+Model, prompt, policy, semantic package, tài liệu và embedding đều có version.
+Có golden dataset và release regression gate.
+4.3. Chỉ số thành công ban đầu
+Nhóm
+Chỉ số pilot
+Bảo mật
+Unauthorized disclosure, cross-tenant retrieval, forbidden SQL, forbidden cloud routing và PHI trong log đều bằng 0
+Dữ liệu có cấu trúc
+100% KPI trọng yếu khớp validation query; overall result accuracy tối thiểu 90%
+Tài liệu
+Retrieval Recall@5 tối thiểu 85%; citation precision tối thiểu 95%
+Khả năng từ chối
+Correct denial/abstention tối thiểu 95%
+Hiệu năng
+p95 structured question không quá 15 giây; p95 mixed/RAG không quá 20 giây
+Truy vết
+100% data access request có audit và evidence linkage
+Tái sử dụng
+Onboard dự án thứ hai trong tối đa 5 ngày; tối thiểu 80% bằng cấu hình
+
+Các ngưỡng trên là baseline cho pilot. Mỗi dự án phải chốt lại theo mức độ rủi ro.
+4.4. Trong phạm vi
+Chat widget nhúng vào nhiều website.
+Project registry và cấu hình theo dự án.
+Tích hợp IAM hiện tại bằng opaque identifiers.
+RBAC kết hợp ABAC.
+Semantic catalog, QuerySpec và Safe Query Engine.
+PostgreSQL read replica/data mart và pgvector.
+Quản lý file, OCR/extraction, lifecycle, chunk ACL và RAG.
+Local LLM và external LLM qua Model Gateway.
+Answer Profile theo vai trò.
+Evidence, citation, audit, feedback và evaluation.
+Admin Control Plane cho project, datasource, semantic, policy, tài liệu và model.
+4.5. Ngoài phạm vi MVP
+Cho LLM tự viết và chạy raw SQL.
+Truy vấn trực tiếp production OLTP nếu chưa có vùng reporting được phê duyệt.
+Cho AI ghi ngược dữ liệu nghiệp vụ.
+Autonomous clinical hoặc business decision.
+Tự động fallback dữ liệu restricted từ local sang cloud.
+Fine-tuning ngay từ đầu.
+Tự động học từ conversation production chưa được review.
+Knowledge graph hoặc multi-agent swarm trước khi semantic/RAG cơ bản ổn định.
+Web search mặc định cho mọi câu hỏi.
+Fork toàn bộ Open Notebook hoặc Dify làm platform core.
+5. Nguyên tắc và quyết định kiến trúc
+5.1. Nguyên tắc bắt buộc
+Policy before data: kiểm tra quyền trước khi truy vấn hoặc retrieval.
+Fail closed: thiếu identity, scope, policy hoặc evidence phải từ chối/an toàn.
+Least privilege: connector và service account chỉ có quyền tối thiểu.
+Semantic first: model thấy semantic projection đã duyệt, không mặc định thấy physical schema.
+No direct LLM SQL: model sinh QuerySpec; backend validate và compile.
+Evidence first: không có căn cứ thì không khẳng định dựa trên dữ liệu nội bộ.
+Server-side scope: không tin tenant/branch/role từ request body.
+Trust-boundary-aware routing: fallback không được vượt data egress policy.
+Version everything: mọi cấu hình ảnh hưởng câu trả lời phải có version.
+Human accountability: action có tác động phải cần người có thẩm quyền xác nhận.
+Project isolation: cấu hình, cache, index, conversation và audit không được lẫn.
+Data minimization: chỉ truy xuất và gửi lượng dữ liệu tối thiểu.
+
+5.2. Architecture Decision Record ban đầu
+Mã
+Quyết định
+Trạng thái
+ADR-001
+Bắt đầu bằng Python modular monolith, không khởi tạo nhiều microservice
+Proposed
+ADR-002
+IAM hiện tại là nguồn xác thực duy nhất; không tạo user/role riêng
+Proposed
+ADR-003
+LLM chỉ sinh QuerySpec, không sinh SQL để chạy trực tiếp
+Proposed
+ADR-004
+PostgreSQL grants, views và RLS là lớp bảo vệ cuối
+Proposed
+ADR-005
+ACL tài liệu phải xuống từng chunk và áp dụng trước retrieval
+Proposed
+ADR-006
+Không trả câu khẳng định production nếu thiếu Evidence Pack
+Proposed
+ADR-007
+Provider bên ngoài chỉ nhận context khi Policy Decision cho phép
+Proposed
+ADR-008
+Mọi cấu hình publish được quản lý bằng version và approval
+Proposed
+ADR-009
+Không ghi PHI/raw prompt/raw result vào application log
+Proposed
+ADR-010
+AI suggestion không tự thực thi; hành động cần human approval
+Proposed
+ADR-011
+Open Notebook chỉ dùng POC/reference, không dùng platform core
+Proposed
+ADR-012
+OSS subsystem luôn đặt sau adapter và có exit strategy
+Proposed
+
+
+6. Khái niệm và stakeholder
+6.1. Khái niệm chính
+Khái niệm
+Định nghĩa
+Project
+Cấu hình một sản phẩm hoặc miền nghiệp vụ sử dụng nền tảng
+Tenant
+Đơn vị/khách hàng sở hữu hoặc sử dụng dữ liệu
+Scope
+Phạm vi site, branch, khoa/phòng, thời gian, grain hoặc purpose
+Semantic Catalog
+Metric, dimension, relationship, unit và business glossary đã duyệt
+QuerySpec
+Kế hoạch truy vấn logic độc lập SQL vật lý
+Knowledge Collection
+Nhóm tài liệu có chung mục đích và policy
+Policy Decision
+Quyết định allow/deny và các ràng buộc bắt buộc
+Evidence Pack
+Căn cứ DB/document/external để kiểm tra câu trả lời
+Answer Profile
+Mức chi tiết, cấu trúc và action suggestion theo đối tượng
+Model Profile
+Model/provider/task/data class/timeout/budget được phép
+Grounding Status
+Mức độ câu trả lời được hỗ trợ bởi evidence
+
+Project và Tenant là hai khái niệm độc lập: một project có thể phục vụ nhiều tenant và một tenant có thể dùng nhiều project.
+
+6.2. Stakeholder và trách nhiệm
+Vai trò
+Trách nhiệm chính
+Product Owner/BA
+Use case, ưu tiên, acceptance và adoption
+Data Owner
+Dataset, KPI, quyền và chất lượng dữ liệu
+Semantic Owner
+Metric, dimension, glossary và validation query
+Security/Privacy Owner
+Classification, egress, retention và release approval
+IAM Team
+Token validation và identity claims
+Tech Lead
+Kiến trúc, contract, ADR và release evidence
+Backend Team
+API, policy enforcement, query, evidence và audit
+AI/ML Team
+Planner, retrieval, model routing và evaluation
+Data Engineer/DBA
+Reporting views, RLS, freshness và performance
+Frontend Team
+Widget SDK và Admin UI
+QA/Security Tester
+Functional, permission, adversarial và regression
+DevOps/SRE
+Deploy, secrets, monitoring, backup và incident
+
+7. Use case nghiệp vụ
+7.1. UC-01: Hỏi số liệu tổng hợp
+Ví dụ: “Doanh thu từng chi nhánh tháng này và so với tháng trước?”
+Hệ thống xác định identity/project, nhận diện metric/dimension/time range, kiểm tra quyền, tạo QuerySpec, áp mandatory scope, chạy query đọc, xác minh số liệu và trả scope, as-of, comparison và evidence.
+7.2. UC-02: Hỏi dữ liệu theo khoa/phòng
+Nhân viên chỉ được xem khoa của mình. Khi hỏi toàn đơn vị, hệ thống tự thu hẹp nếu câu trả lời vẫn có ý nghĩa và thông báo scope; nếu không, trả denied hoặc clarification. Prompt không được dùng để thay authorization.
+7.3. UC-03: Hỏi quy trình từ tài liệu
+Retrieval chỉ chạy trong collection/chunk được phép, ưu tiên tài liệu đang hiệu lực và trả đúng document version/page/section. Nếu tài liệu mâu thuẫn, câu trả lời phải nêu rõ.
+7.4. UC-04: Kết hợp dữ liệu và quy định
+Ví dụ: “Tỷ lệ X hiện tại có đạt yêu cầu trong quy định Y không?” Hệ thống tách thành QuerySpec số liệu, retrieval tiêu chuẩn, so sánh bằng logic xác định và tạo hai nhóm evidence.
+7.5. UC-05: Câu hỏi mơ hồ
+Nếu thiếu metric, thời gian, đơn vị hoặc đối tượng, hệ thống hỏi lại thay vì chọn giả định có thể làm thay đổi đáng kể kết quả.
+7.6. UC-06: Không có dữ liệu nội bộ
+Trả insufficient_data. Nếu project cho phép kiến thức ngoài, phần này phải tách riêng, có URL/thời điểm truy cập và ghi rõ không dựa trên dữ liệu doanh nghiệp.
+7.7. UC-07: Câu hỏi vượt quyền
+Trả denied với thông điệp thân thiện, không tiết lộ tên dataset, field hoặc document nhạy cảm mà người dùng không được biết.
+7.8. UC-08: Gợi ý hành động
+Gợi ý được tách khỏi factual answer, nêu căn cứ/giới hạn, kiểm tra action_permissions và không tự thực thi. Nghiệp vụ y tế luôn yêu cầu human approval.
+7.9. UC-09: Quản trị project
+Project Admin cấu hình datasource, semantic package, policy bundle, knowledge collection, model profile, output profile và eval suite; thay đổi nhạy cảm đi qua maker-checker trước publish.
+7.10. UC-10: Điều tra câu trả lời
+Auditor truy ngược opaque user, thời gian, project, scope, policy version, QuerySpec fingerprint, semantic, document, prompt, model và Evidence Pack; không mặc định hiển thị PHI hoặc raw result.
+8. Yêu cầu chức năng
+8.1. Quản lý Project — FR-PRJ
+FR-PRJ-01: Tạo, cập nhật, khóa, archive project và mã project bất biến.
+FR-PRJ-02: Gắn datasource, semantic package, policy bundle, knowledge collection, model/output profile và eval suite.
+FR-PRJ-03: Quản lý trạng thái Draft, Review, Approved, Published, Superseded và Retired.
+FR-PRJ-04: Tách dev/staging/production; có config diff, approval và rollback.
+FR-PRJ-05: Export/import cấu hình không chứa secrets.
+FR-PRJ-06: Không cho project truy cập resource project khác nếu chưa có chia sẻ được phê duyệt.
+FR-PRJ-07: Có quota, feature flags, owner và classification riêng.
+8.2. Tích hợp IAM — FR-IAM
+FR-IAM-01: Xác minh JWT qua JWKS hoặc token introspection của IAM hiện tại.
+FR-IAM-02: Chuẩn hóa token thành IdentityContext với opaque user/tenant/site/branch/department IDs.
+FR-IAM-03: Kiểm tra issuer, audience, signature, expiry, token status và claims bắt buộc.
+FR-IAM-04: Không tin scope hoặc role do widget gửi trong request body.
+FR-IAM-05: Page context chỉ được thu hẹp, không mở rộng quyền.
+FR-IAM-06: Khi entitlement thay đổi, context và cache liên quan phải mất hiệu lực.
+FR-IAM-07: IAM không xác minh được phải fail closed.
+FR-IAM-08: Mỗi request có request ID, trace ID và identity đã xác thực.
+8.3. Policy và ABAC — FR-POL
+FR-POL-01: Hỗ trợ RBAC kết hợp ABAC theo identity, resource, action, purpose và environment.
+FR-POL-02: Quyết định riêng cho data access, answer profile và action permissions.
+FR-POL-03: Giới hạn metric, dimension, row scope, column, grain, aggregation và drill-down.
+FR-POL-04: Hỗ trợ masking, minimum group size và aggregate-only.
+FR-POL-05: Giới hạn collection, document classification và chunk ACL.
+FR-POL-06: Giới hạn model/provider và external egress.
+FR-POL-07: Lỗi hoặc policy không xác định phải default-deny.
+FR-POL-08: Policy có version, test cases, approval, effective date và simulation.
+FR-POL-09: Backend enforcement tại API, semantic projection, query, retrieval, model routing, output và export.
+8.4. Semantic Catalog — FR-SEM
+FR-SEM-01: Quản lý approved view/entity, metric, dimension, relationship, filter và time semantics.
+FR-SEM-02: Mỗi field có business name, description, data type, unit, sensitivity và synonyms.
+FR-SEM-03: Metric có formula, grain, owner, validation query, freshness và as-of.
+FR-SEM-04: Relationship khai báo cardinality và allowed join path.
+FR-SEM-05: Chỉ object Approved mới được đưa vào model context.
+FR-SEM-06: Schema scanner chỉ tạo Draft, không tự publish.
+FR-SEM-07: Có version, breaking-change check và rollback.
+FR-SEM-08: Hỗ trợ project override mà không sửa platform core.
+8.5. Structured Data Q&A — FR-SDQ
+FR-SDQ-01: Phân loại data, document, mixed, general, clarification hoặc unsupported.
+FR-SDQ-02: Chuyển câu hỏi dữ liệu thành typed QuerySpec theo JSON Schema.
+FR-SDQ-03: Validate metric, dimension, filter, join, operator, time range, sort và limit.
+FR-SDQ-04: Backend chèn mandatory tenant/site/branch/department scope.
+FR-SDQ-05: Compile thành parameterized SQL chỉ trên approved views/data marts.
+FR-SDQ-06: Cấm DDL, DML, multi-statement, system catalog và function chưa allow.
+FR-SDQ-07: Áp statement timeout, lock timeout, row/date/cost/concurrency limit.
+FR-SDQ-08: Chạy bằng read-only account trên replica/data mart, không bypass RLS.
+FR-SDQ-09: Xử lý empty/null/division-by-zero/unit/timezone và numeric verification.
+FR-SDQ-10: Không để LLM tính lại số liệu quan trọng nếu backend có thể tính xác định.
+FR-SDQ-11: Data answer có semantic version, scope, filter, as-of và evidence ID.
+FR-SDQ-12: Query mơ hồ phải clarification; raw SQL không trả end-user mặc định.
+8.6. Quản lý tài liệu — FR-DOC
+FR-DOC-01: Upload các định dạng được duyệt; validate MIME, signature, size và checksum.
+FR-DOC-02: Malware scan và quarantine trước extraction.
+FR-DOC-03: OCR, layout, heading, table và metadata extraction.
+FR-DOC-04: Gắn owner, project, tenant, classification, ACL, effective/expiry date.
+FR-DOC-05: Lifecycle gồm Draft, Review Required, Approved, Published, Superseded, Revoked và Archived.
+FR-DOC-06: Chỉ document Published và còn hiệu lực được retrieval mặc định.
+FR-DOC-07: ACL/classification kế thừa xuống từng chunk.
+FR-DOC-08: Embedding có classification tương đương nguồn.
+FR-DOC-09: Revoke/delete lan truyền tới chunk, vector, summary và cache.
+FR-DOC-10: File gốc nằm ở object storage; object key không chứa PII/PHI.
+8.7. Retrieval và RAG — FR-RAG
+FR-RAG-01: Filter project/tenant/classification/ACL trước hoặc cùng vector search.
+FR-RAG-02: Hybrid lexical + vector search và optional reranking.
+FR-RAG-03: Không retrieve-all rồi nhờ LLM lọc quyền.
+FR-RAG-04: Chunk giữ document ID/version/page/section/checksum.
+FR-RAG-05: Citation trỏ đúng phiên bản, trang và mục; ưu tiên tài liệu hiệu lực.
+FR-RAG-06: Tài liệu được coi là untrusted data, không phải system instruction.
+FR-RAG-07: Ngăn indirect prompt injection, secret exfiltration và tool instruction trong file.
+FR-RAG-08: Evidence không đủ thì trả insufficient_data.
+FR-RAG-09: Có retrieval trace và benchmark chunking theo loại tài liệu/tiếng Việt.
+8.8. Multi-LLM và Model Gateway — FR-LLM
+FR-LLM-01: Adapter thống nhất cho local và approved external providers.
+FR-LLM-02: Tách model theo task: intent, planning, embedding, rerank, generation và evaluation.
+FR-LLM-03: Routing theo project, data classification, task, region và policy.
+FR-LLM-04: Không fallback qua trust boundary; restricted/PHI mặc định local-only.
+FR-LLM-05: Redaction, masking hoặc aggregate trước external egress.
+FR-LLM-06: Timeout, bounded retry, circuit breaker, rate limit, quota và budget.
+FR-LLM-07: Output bắt buộc validate JSON Schema/Pydantic.
+FR-LLM-08: Secrets nằm trong secret manager; provider có emergency disable.
+FR-LLM-09: Prompt có version, owner, eval và approval.
+FR-LLM-10: Conversation khác project/scope không được tái sử dụng làm context.
+8.9. Answer Composition — FR-ANS
+FR-ANS-01: Tách factual answer, interpretation và suggested action.
+FR-ANS-02: Role không làm thay đổi số liệu; role ảnh hưởng scope và cách trình bày.
+FR-ANS-03: Hiển thị scope, as-of, evidence, limitation và grounding status.
+FR-ANS-04: Không dùng ngôn ngữ khẳng định khi chỉ là suy luận.
+FR-ANS-05: Hỗ trợ summary, detail, table, KPI card và chart specification.
+FR-ANS-06: HTML/script phải sanitize.
+FR-ANS-07: Action suggestion phải qua action_permissions và human-approval flag.
+FR-ANS-08: Phân biệt data, document, mixed, general_external, clarification, insufficient_data, denied và system_error.
+8.10. Chat, Widget và Admin — FR-UX
+FR-UX-01: Conversation gắn user, project và security scope; scope đổi thì context cũ không dùng tiếp.
+FR-UX-02: Multi-turn clarification, cancel request và streaming trạng thái không lộ chain-of-thought.
+FR-UX-03: Web Component/JavaScript SDK tương thích Bootstrap/Backbone và framework khác.
+FR-UX-04: SSE, responsive desktop/mobile, keyboard accessibility và theme theo project.
+FR-UX-05: Không lưu token dài hạn ở localStorage và không đưa token/PHI vào URL.
+FR-UX-06: Citation panel, scope/as-of/limitation và feedback phân loại lỗi.
+FR-UX-07: Admin quản lý project, datasource, semantic, policy, document, model, prompt, eval, quota và audit.
+FR-UX-08: Maker-checker, diff, rollback và emergency disable cho thay đổi nhạy cảm.
+8.11. Audit và Evaluation — FR-AUD/EVAL
+FR-AUD-01: Trace ID xuyên suốt; audit opaque identity, project, action, resource, decision và time.
+FR-AUD-02: Ghi policy/semantic/prompt/model/document/embedding/eval versions.
+FR-AUD-03: Ghi QuerySpec và query digest, không ghi PHI/access token/secrets vào application log.
+FR-AUD-04: Tách application log, security audit và AI trace.
+FR-AUD-05: Audit append-only, retention rõ ràng và quyền xem hạn chế.
+FR-EVAL-01: Mỗi project có golden dataset gồm positive, denial, clarification, injection và insufficient cases.
+FR-EVAL-02: Đánh giá intent, QuerySpec, result, retrieval, citation và answer riêng.
+FR-EVAL-03: Deterministic assertion cho số liệu; recall@k/citation precision cho RAG.
+FR-EVAL-04: Regression gate trước publish policy, semantic, prompt, model hoặc retrieval config.
+FR-EVAL-05: Feedback người dùng chỉ thành ground truth sau review.
+9. Yêu cầu phi chức năng
+9.1. Bảo mật và riêng tư — NFR-SEC/PRI
+TLS cho mọi kết nối; secret nằm trong secret manager.
+File, database và backup được mã hóa phù hợp classification.
+Network zone tách API, worker, query executor, database và model gateway.
+Datasource account chỉ đọc và ưu tiên reporting replica/data mart.
+Tenant isolation ở application, policy, retrieval, cache và database.
+Cache key chứa project, tenant, scope fingerprint, policy/semantic version và as-of.
+Không PHI/PII trong URL, log, trace, error message hoặc object key.
+Small-cell/minimum cohort suppression được cấu hình cho domain y tế.
+Patient-level mặc định restricted; chỉ mở bằng use case và quyền cụ thể.
+Conversation, evidence, embedding và audit có retention/delete policy riêng.
+Web search không nhận câu hỏi còn PHI.
+Có kill switch cho datasource, collection, policy bundle và provider.
+Dependency/container/SBOM/malware scan nằm trong CI/CD và vận hành.
+9.2. Hiệu năng và khả năng mở rộng — NFR-PERF
+Trạng thái streaming đầu tiên p95 không quá 3 giây.
+Structured question p95 không quá 15 giây; mixed/RAG p95 không quá 20 giây ở tải pilot.
+Query vượt ngưỡng được cancel/timeout hoặc chuyển async, không block worker/API.
+Không tải toàn bộ dataset về ChatService để lọc trong memory.
+Pagination, row limit, result summary và connection/concurrency quota bắt buộc.
+API stateless và scale ngang; ingestion/eval chạy worker idempotent.
+Mỗi project có quota, model profile và security-domain isolation tùy classification.
+9.3. Tin cậy, vận hành và bảo trì — NFR-REL/MNT
+Lỗi IAM/policy phải từ chối; lỗi RAG không được chuyển thành câu trả lời không căn cứ.
+Health/live/ready checks; backup/restore test và runbook incident.
+Pilot hướng tới availability 99,5%; RPO/RTO chốt theo project.
+Domain core không phụ thuộc trực tiếp Sanic, SQLAlchemy, OPA hoặc SDK provider.
+Adapter/connector có contract tests; API có OpenAPI; migrations dùng Alembic.
+Prompt và policy được review như source code.
+Không nâng major version framework/library ngoài migration plan được duyệt.
+Mọi release có rollback cho project manifest, policy, semantic, prompt và model profile.
+9.4. Observability — NFR-OBS
+Theo dõi request/success/denied/error; latency từng stage; query timeout; retrieval empty/citation coverage; model token/cost/provider error; policy latency; queue depth; ingestion failure; cache hit; feedback và security events. Metrics/trace không chứa nội dung nhạy cảm.
+
+10. Kiến trúc kỹ thuật mục tiêu
+10.1. Mô hình tổng thể
+
+Hình 1. Kiến trúc logic đề xuất và các trust boundary chính
+Nền tảng ban đầu là modular monolith gồm Sanic API, worker và scheduler. Module domain độc lập với framework và integration cụ thể. API không truy cập trực tiếp production OLTP; Query Executor chỉ kết nối approved reporting source. LLM không có database credential. Chỉ Model Gateway có outbound access tới provider được duyệt.
+Luồng tổng quát:
+Widget gửi câu hỏi và page context tới Chat API.
+IAM Adapter xác minh session/token và tạo IdentityContext.
+Policy Engine quyết định project, semantic projection, document scope, model route và output profile.
+Orchestrator phân loại structured, document, mixed, external, clarification hoặc denied.
+Structured path tạo QuerySpec và đi qua Safe Query Engine.
+Document path retrieval theo chunk ACL và document version.
+Evidence Composer hợp nhất căn cứ.
+Answer Composer chỉ diễn đạt từ verified result/evidence.
+Output Policy kiểm tra masking, action và scope disclosure.
+API stream AnswerEnvelope và ghi audit.
+10.2. Control Plane và Data Plane
+Control Plane quản lý project, datasource metadata, semantic package, policy bundle, collection/document metadata, model/output profile, prompt, eval suite và publish workflow. Control Plane không lưu bản sao dữ liệu nghiệp vụ nguồn.
+Data Plane xử lý từng câu hỏi: identity, policy, intent, planning, query/retrieval, verification, evidence, answer và audit. Query result chỉ tồn tại trong memory hoặc cache TTL ngắn. Nếu lưu conversation nhạy cảm phải mã hóa, phân quyền và retention rõ ràng.
+
+10.3. Module boundaries
+Module
+Trách nhiệm
+Không được làm
+identity_context
+Xác minh và chuẩn hóa IAM claims
+Tạo user/role riêng
+project_registry
+Project manifest và version
+Chứa business query
+policy
+Quyết định data/document/model/output/action
+Trực tiếp chạy query
+semantic_catalog
+Metric, dimension, relationship, glossary
+Truy cập user data
+query_planner
+Câu hỏi thành QuerySpec
+Sinh SQL cuối
+safe_query
+Validate, compile, execute, verify
+Nhận raw SQL từ LLM/client
+knowledge
+File, version, chunk, lifecycle
+Tự quyết định quyền user
+retrieval
+Hybrid search, rerank, citation
+Retrieve ngoài policy scope
+model_gateway
+Route local/cloud
+Tự fallback qua trust boundary
+orchestration
+State machine hỏi đáp
+Thay thế Policy Engine
+evidence
+Chuẩn hóa căn cứ
+Tự tạo số liệu
+answer
+Render theo output profile
+Thay đổi verified result
+
+10.3. Module boundaries (tiếp)
+Module
+Trách nhiệm
+Không được làm
+conversation
+Session/message/feedback
+Lưu PHI thô mặc định
+audit
+Security/data-access trail
+Dùng thay debug log
+evaluation
+Golden/regression/red-team
+Dùng production data tùy ý
+
+Quy tắc phụ thuộc:
+API adapters ↓ Application services ↓ Domain modules ↑ Infrastructure adapters
+Domain không phụ thuộc trực tiếp Sanic, SQLAlchemy, Redis, object storage, OPA hoặc SDK LLM.
+10.4. Cấu trúc codebase đề xuất
+data-qa-platform/
+├── app/
+│   ├── bootstrap/
+│   ├── api/
+│   │   ├── chat/
+│   │   ├── admin/
+│   │   ├── internal/
+│   │   └── middleware/
+│   ├── modules/
+│   │   ├── identity_context/
+│   │   ├── project_registry/
+│   │   ├── policy/
+│   │   ├── semantic_catalog/
+│   │   ├── query_planner/
+│   │   ├── safe_query/
+│   │   ├── knowledge/
+│   │   ├── retrieval/
+│   │   ├── model_gateway/
+│   │   ├── orchestration/
+│   │   ├── evidence/
+│   │   ├── answer/
+│   │   ├── conversation/
+│   │   ├── audit/
+│   │   └── evaluation/
+│   ├── infrastructure/
+│   │   ├── database/
+│   │   ├── pgvector/
+│   │   ├── redis/
+│   │   ├── object_storage/
+│   │   ├── iam/
+│   │   ├── opa/
+│   │   ├── llm/
+│   │   └── telemetry/
+│   └── shared/
+│       ├── contracts/
+│       ├── errors/
+│       ├── security/
+│       └── types/
+├── projects/
+│   └── sample_project/
+│       ├── project.yaml
+│       ├── semantic/
+│       ├── policies/
+│       ├── prompts/
+│       ├── output_profiles/
+│       └── evals/
+├── migrations/
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   ├── security/
+│   ├── evaluation/
+│   └── end_to_end/
+├── deploy/
+└── docs/
+Mỗi module sở hữu model/repository/migration logic của mình. Module khác không cập nhật trực tiếp bảng do module đó sở hữu.
+10.5. Safe Query Pipeline
+Xác minh IdentityContext và project access.
+Chỉ chiếu semantic members được phép cho planner.
+Yêu cầu model trả QuerySpec theo schema.
+Validate bằng Pydantic/JSON Schema.
+Kiểm tra metric/dimension/filter/operator/join/time range.
+Backend resolve mandatory filters từ IdentityContext.
+Kiểm tra grain, aggregation, minimum cohort, rows và complexity.
+Compile thành parameterized SQL hoặc semantic query.
+Parse AST như lớp phòng thủ bổ sung.
+Mở transaction READ ONLY, áp RLS context, timeout và quota.
+Optional EXPLAIN để chặn query vượt cost threshold.
+Chạy trên replica/data mart; kiểm tra scope và masking lại trên result.
+Numeric verifier kiểm tra total, rate, unit, null và as-of.
+Tạo Evidence Pack.
+Chỉ gửi aggregate/masked result cho model route được phép.
+Render AnswerEnvelope và ghi audit.
+Database invariant:
+Service account chỉ SELECT trên allowlisted views.
+Không bypass RLS, không DDL/DML, không multi-statement.
+Không system catalog hoặc arbitrary function.
+Không string interpolation; tất cả giá trị qua bind parameters.
+Pool/credential tách theo datasource và security domain.
+10.6. Document ingestion và RAG
+Ingestion pipeline:
+Upload → Quarantine → MIME/signature validation → Malware scan → Hash/deduplicate → Extract/OCR → DLP/classification → Metadata normalization → Chunking → ACL inheritance → Embedding/full-text index → Quality review → Approval → Publish
+Document lifecycle:
+UPLOADED → PROCESSING → REVIEW_REQUIRED → APPROVED → PUBLISHED → SUPERSEDED / REVOKED / ARCHIVED
+Chỉ document PUBLISHED và còn hiệu lực được dùng production. Mỗi chunk lưu project, tenant, collection, classification, document/version, page, section, checksum và ACL metadata. Revoke/delete phải vô hiệu hóa chunk, embedding, summary và answer/retrieval cache.
+Retrieval pipeline:
+Question → Controlled rewrite → Policy-derived ACL filters → Full-text + pgvector search → Rank fusion → Reranking → Post-policy verification → Citation assembly → Evidence Pack
+ACL phải nằm trong truy vấn retrieval; không retrieve-all rồi lọc bằng model. Embedding cũng được coi là dữ liệu nhạy cảm. Tài liệu restricted dùng local embedding.
+10.7. Workflow state machine
+Không bắt đầu bằng autonomous agent. Workflow xác định trước:
+RECEIVED → IDENTITY_VERIFIED → AUTHORIZED → INTENT_CLASSIFIED → PLANNED → RETRIEVED/EXECUTED → VERIFIED → COMPOSED → AUDITED → COMPLETED
+Các trạng thái kết thúc thay thế: DENIED, CLARIFICATION_REQUIRED, INSUFFICIENT_DATA, FAILED và TIMED_OUT. LangGraph có thể triển khai state machine, nhưng policy/query security nằm ngoài graph và có tính deterministic.
+10.8. Mô hình triển khai
+Workload ban đầu:
+dataqa-api: Sanic API, orchestration và SSE.
+dataqa-worker: OCR, extraction, embedding, ingestion và evaluation.
+dataqa-scheduler: cleanup, re-index, recurring eval; có thể gộp worker ở MVP.
+opa hoặc Policy Decision Point tương đương.
+model-gateway: LiteLLM hoặc adapter tự xây.
+PostgreSQL control DB có pgvector.
+Redis cho queue/status/cache/rate limits.
+Object storage nội bộ cho file gốc.
+Local model server/GPU triển khai riêng.
+Network rules:
+Widget chỉ truy cập API.
+Query Executor không có Internet egress.
+Chỉ Model Gateway có outbound tới approved provider.
+OCR worker xử lý restricted document không có Internet.
+Admin API tách route, authorization và rate limit.
+API stateless; stream đa instance dùng Redis Pub/Sub hoặc event broker phù hợp.
+11. Domain contract cốt lõi
+11.1. IdentityContext
+IdentityContext chỉ được tạo từ token/session đã xác minh, không lấy tenant/branch/role từ body.
+{
+  "request_id": "req_01J...",
+  "user_id": "iam-user-opaque-id",
+  "tenant_id": "tenant-opaque-id",
+  "site_ids": ["site-01"],
+  "branch_ids": ["branch-01", "branch-02"],
+  "department_ids": ["dept-cardiology"],
+  "roles": ["department_manager"],
+  "permissions": ["dataqa.ask", "dataqa.view_aggregate"],
+  "purpose": "operations_monitoring",
+  "page_context": {
+    "application": "hospital-workspace",
+    "module": "department-dashboard"
+  },
+  "authenticated_at": "2026-08-22T10:15:00Z"
+}
+11.2. PolicyDecision
+{
+  "effect": "allow",
+  "policy_version": "hospital-policy:1.4.0",
+  "reason_codes": ["ROLE_ALLOWED", "BRANCH_SCOPE_APPLIED"],
+  "allowed_resources": {
+    "metrics": ["visit_count", "net_revenue"],
+    "dimensions": ["department", "visit_date"],
+    "knowledge_collections": ["hospital-regulations"]
+  },
+  "mandatory_filters": [
+    {"field": "tenant_id", "operator": "eq", "value_source": "identity.tenant_id"},
+    {"field": "branch_id", "operator": "in", "value_source": "identity.branch_ids"}
+  ],
+  "forbidden_fields": ["patient_name", "phone_number", "national_id"],
+  "maximum_granularity": "aggregate",
+  "maximum_rows": 500,
+  "model_route": "local-only",
+  "allow_external_context": false,
+  "output_profile": "department_manager",
+  "action_permissions": ["suggest_review"]
+}
+Mandatory filter value do backend resolve; model không được cung cấp hoặc sửa. Policy được kiểm tra khi chọn project, chiếu semantic context, retrieval, validate QuerySpec, execute query, xử lý result, gọi model và trả output.
+11.3. QuerySpec
+{
+  "version": "1.0",
+  "project_id": "hospital-analytics",
+  "intent": "metric_query",
+  "metrics": ["visit_count", "net_revenue"],
+  "dimensions": ["department"],
+  "time_range": {
+    "field": "visit_date",
+    "from": "2026-08-01",
+    "to": "2026-08-21",
+    "timezone": "Asia/Bangkok"
+  },
+  "filters": [
+    {"field": "visit_type", "operator": "eq", "value": "outpatient"}
+  ],
+  "order_by": [{"field": "net_revenue", "direction": "desc"}],
+  "limit": 10
+}
+QuerySpec không chứa SQL, tên bảng vật lý, connection, credential, unapproved expression hoặc tenant scope do user/model tự nhập.
+11.4. EvidencePack
+{
+  "evidence_id": "evd_01J...",
+  "grounding_status": "fully_grounded",
+  "data_evidence": [{
+    "execution_id": "exec_01J...",
+    "query_digest": "sha256:...",
+    "semantic_version": "hospital-semantic:2.3.0",
+    "policy_version": "hospital-policy:1.4.0",
+    "scope": {"tenant_id": "tenant-opaque-id", "branch_ids": ["branch-01"]},
+    "row_count": 10,
+    "as_of": "2026-08-21T23:59:59+07:00"
+  }],
+  "document_evidence": [{
+    "document_id": "doc_01J...",
+    "document_version": 3,
+    "title": "Quy định vận hành khoa khám bệnh",
+    "page": 12,
+    "section": "3.2",
+    "chunk_id": "chunk_01J...",
+    "content_hash": "sha256:..."
+  }],
+  "external_evidence": [],
+  "limitations": ["Dữ liệu chưa bao gồm giao dịch sau thời điểm as-of"]
+}
+Raw SQL và bind values không gửi frontend. Nếu cần điều tra, lưu ở audit zone hạn chế quyền và theo retention.
+11.5. AnswerEnvelope
+{
+  "answer_id": "ans_01J...",
+  "status": "answered",
+  "answer_type": "mixed",
+  "grounding_status": "fully_grounded",
+  "content": {
+    "summary": "Khoa Nội có số lượt khám cao nhất trong kỳ.",
+    "details": ["Khoa Nội: 2.130 lượt", "Khoa Tim mạch: 1.870 lượt"]
+  },
+  "scope_disclosure": {
+    "tenant": "Bệnh viện A",
+    "branches": ["Cơ sở 1"],
+    "granularity": "aggregate"
+  },
+  "as_of": "2026-08-21T23:59:59+07:00",
+  "citations": [{"type": "data", "evidence_id": "evd_01J..."}],
+  "limitations": [],
+  "suggested_actions": [{
+    "action": "review_department_capacity",
+    "label": "Rà soát năng lực tiếp nhận của Khoa Nội",
+    "requires_human_approval": true
+  }],
+  "trace_id": "trace_01J..."
+}
+Status chuẩn: answered, partially_answered, clarification_required, insufficient_data, denied và temporarily_unavailable.
+11.6. Project Manifest
+apiVersion: dataqa/v1
+kind: Project
+metadata:
+  id: hospital-analytics
+  name: Hospital Analytics
+  version: 1.0.0
+spec:
+  identity:
+    requiredClaims: [user_id, tenant_id, branch_ids, roles]
+  dataSources:
+    - ref: hospital-reporting-db
+      classification: restricted
+      semanticPackage: hospital-semantic:2.3.0
+  knowledge:
+    collections:
+      - id: hospital-regulations
+        classification: internal
+        embeddingProfile: local-multilingual-v1
+  policy:
+    bundle: hospital-policy:1.4.0
+    defaultEffect: deny
+  models:
+    planner: local-planner-v1
+    externalEgressDefault: deny
+  outputProfiles: [director, department_manager, staff]
+  limits:
+    maximumRows: 500
+    queryTimeoutSeconds: 15
+    answerTimeoutSeconds: 45
+  evaluations:
+    suites: [hospital-golden-questions, hospital-security-regression]
+Manifest chỉ chứa secretRef, không chứa password/API key/connection string. Publish flow: Draft → Validated → Approved → Published → Superseded/Revoked.
+12. Mô hình dữ liệu và API mức cao
+12.1. Control-plane entities
+Nhóm
+Entities chính
+Project
+dq_project, dq_project_version
+Datasource
+dq_data_source, dq_project_data_source
+Semantic
+dq_semantic_package, dq_entity, dq_metric, dq_dimension, dq_relationship
+Policy
+dq_policy_bundle, dq_policy_version
+Model
+dq_model_profile, dq_model_route
+Knowledge
+dq_collection, dq_document, dq_document_version, dq_chunk, dq_chunk_acl
+Conversation
+dq_chat_session, dq_message, dq_feedback
+Execution/Evidence
+dq_execution, dq_query_execution, dq_evidence, dq_evidence_item
+Audit
+dq_audit_event
+Evaluation
+dq_eval_suite, dq_eval_case, dq_eval_run, dq_eval_result
+
+Nguyên tắc model: UUID/ULID; opaque IAM IDs; created/updated/created_by; version/checksum/status; không foreign key sang IAM; chunk có project/collection/classification/version/ACL; embedding có model/dimension/version; migration dùng Alembic.
+12.2. Chat API
+Method
+Endpoint
+Mục đích
+POST
+/v1/chat/sessions
+Tạo session theo identity/project
+POST
+/v1/chat/sessions/{id}/messages
+Gửi câu hỏi; hỗ trợ SSE
+GET
+/v1/chat/sessions/{id}
+Session metadata theo quyền
+GET
+/v1/chat/sessions/{id}/messages
+History theo retention
+POST
+/v1/chat/answers/{id}/feedback
+Feedback phân loại
+GET
+/v1/chat/capabilities
+Project/phạm vi user được phép
+
+12.3. Admin API
+Nhóm endpoint
+Chức năng
+/v1/admin/projects
+Tạo version, validate, approve, publish, rollback
+/v1/admin/data-sources
+Khai báo, test, scan schema thành Draft
+/v1/admin/semantic-packages
+Quản lý, validate và publish semantic
+/v1/admin/policies
+Simulate, test, approve và publish
+/v1/admin/documents
+Upload, ingest, approve, publish, revoke
+/v1/admin/model-profiles
+Provider/model route/budget/disable
+/v1/admin/evaluation-runs
+Chạy và xem regression
+/v1/admin/audit-events
+Tra cứu audit theo quyền
+
+Endpoint vận hành: GET /health/live, GET /health/ready và GET /metrics. Internal QuerySpec preview/execute không công khai cho widget.
+
+12.4. Error contract
+Mã
+Ý nghĩa
+IDENTITY_CONTEXT_MISSING
+Thiếu hoặc sai IAM claim
+PROJECT_ACCESS_DENIED
+Không được truy cập project
+POLICY_DENIED
+Policy từ chối
+SEMANTIC_MEMBER_NOT_ALLOWED
+Metric/dimension không được phép
+QUESTION_AMBIGUOUS
+Cần làm rõ
+QUERY_COMPLEXITY_EXCEEDED
+Query vượt giới hạn
+QUERY_TIMEOUT
+Truy vấn quá thời gian
+SOURCE_UNAVAILABLE
+Datasource không sẵn sàng
+NO_ACCEPTABLE_EVIDENCE
+Không có căn cứ đủ tin cậy
+PROVIDER_EGRESS_DENIED
+Không được gửi context ra ngoài
+DOCUMENT_NOT_APPROVED
+Document chưa publish/không hiệu lực
+ANSWER_VERIFICATION_FAILED
+Kết quả không qua verification
+
+Frontend hiển thị thông điệp thân thiện; response không tiết lộ SQL, schema, path hoặc secret.
+
+13. Chiến lược mã nguồn mở
+13.1. Nguyên tắc lựa chọn
+Không chọn một all-in-one platform làm security boundary. Chấm điểm theo security/tenant isolation, accuracy, integration, customization, license/TCO, operations và performance. Điều kiện loại: license không phù hợp, egress không kiểm soát, không thể đặt sau Policy Enforcement Point, không truy vết được, dự án ngừng bảo trì hoặc phải fork sâu.
+
+13.2. Build/Adopt/Trial matrix
+Thành phần
+Hướng xử lý
+Ghi chú
+Chat Control Plane, Project Registry, contracts
+Build
+Tài sản cốt lõi
+IAM adapter và policy enforcement glue
+Build
+IAM vẫn do hệ thống hiện tại sở hữu
+Semantic definition và approved metrics
+Build/own
+Có thể thực thi qua Cube sau spike
+Policy Decision Point
+Adopt OPA hoặc tương đương
+Không thay database enforcement
+Safe Query/QuerySpec compiler
+Build
+Có thể dùng SQLGlot cho AST
+Document parsing/OCR
+Adopt
+Không tự xây OCR engine
+Vector retrieval MVP
+Adopt pgvector
+Benchmark trước khi đổi
+Document RAG nâng cao
+Trial RAGFlow
+Chỉ dùng nếu benchmark tốt hơn rõ rệt
+Semantic execution
+Trial Cube Core
+Phù hợp nếu dùng chung AI/BI
+Text-to-SQL accelerator
+Trial WrenAI
+Không làm security boundary
+Multi-provider gateway
+Adopt/Trial LiteLLM
+Policy egress vẫn ở ChatService
+Observability/evaluation UI
+Trial Langfuse hoặc Phoenix
+Redact trước trace; chọn một
+
+13.2. Build/Adopt/Trial matrix (tiếp)
+Thành phần
+Hướng xử lý
+Ghi chú
+Widget/Admin/Evidence/Eval dataset
+Build
+Gắn chặt nghiệp vụ và quyền
+
+13.3. Đánh giá Open Notebook
+Open Notebook phù hợp POC document research: file ingestion, full-text/vector search, contextual chat, multi-provider và REST API. Tuy nhiên kiến trúc hiện tại dùng FastAPI/Next.js/SurrealDB; bảo vệ bằng password dùng chung, chưa có user/role/audit phù hợp; multi-user mới ở design phase; không có semantic metrics, governed QuerySpec/SQL, tenant/branch ABAC hoặc chunk ACL như yêu cầu.
+Quyết định:
+Platform base: Không.
+Fork để làm sản phẩm chính: Không khuyến nghị.
+POC/reference cho ingestion, Ask workflow và UX: Có.
+Production subsystem: chỉ khi cô lập theo security domain, không PHI và không cho user truy cập trực tiếp.
+POC Open Notebook kéo dài 2–3 tuần, dùng 30–50 tài liệu giả/khử định danh, local model mặc định, không nối production DB. Đo extraction, citation, retrieval, streaming UX, API, latency và tài nguyên; kết quả là danh sách pattern có thể port, không phải cam kết fork.
+13.4. Các POC công nghệ
+POC pgvector vs RAGFlow dùng PDF text/scan/table/multi-version/ACL; đo extraction, Recall@5, MRR/NDCG, citation precision/coverage, ingestion, p95, resource, revoke và re-index. Nếu chất lượng không chênh đáng kể, giữ pgvector cho MVP.
+POC custom QuerySpec vs Cube Core vs WrenAI dùng chung 10 KPI, 5–10 dimensions, 30–50 questions và permission cases. Chọn custom cho scope nhỏ/kiểm soát cao; Cube khi semantic dùng chung AI/BI; Wren chỉ accelerator sau Query Broker.
+POC LiteLLM kiểm thử local và ít nhất hai cloud providers, routing theo classification, timeout/retry, budget, health, audit metadata, no restricted fallback và no sensitive logging.
+Dify chỉ dùng visual workflow/prompt/RAG prototype nội bộ. Không dùng platform core multi-tenant nếu chưa hoàn tất legal/security/license review.
+
+14. Roadmap nghiên cứu và phát triển
+14.1. Lộ trình tổng thể
+Giai đoạn
+Thời gian
+Kết quả
+0. Discovery & Governance
+Tuần 1–2
+Pilot scope, classification, golden v0
+1. OSS Research & Architecture Spike
+Tuần 2–4
+POC reports, ADR, Build/Adopt matrix
+2. Platform Foundation
+Tuần 4–7
+IAM, policy, audit, registry, model contract
+3A. Structured Data Q&A MVP
+Tuần 7–12
+Semantic, QuerySpec, Safe Query, evidence
+3B. Document RAG MVP
+Tuần 7–12
+Lifecycle, ACL retrieval, citation
+4. Unified Chat & Widget
+Tuần 12–15
+Mixed answers, widget, admin, feedback
+5. Hardening & Pilot
+Tuần 15–18
+Security/eval/load gates, controlled pilot
+6. Multi-project Productization
+Tuần 19–24
+SDK/templates, project 2 onboarding
+
+3A và 3B chạy song song khi đủ nhân lực. Với đội 4–5 người, làm Structured Data trước rồi RAG; thời gian productization dự kiến 8–10 tháng.
+14.2. Giai đoạn 0 — Discovery và Governance
+Công việc: chọn một project, 2–3 roles, 1–2 tenant/site/branch, 30–50 questions, 10 metrics, 5–10 dimensions, 3–5 views và 20–50 documents. Phân loại public/internal/confidential/restricted/PHI, lập provider egress matrix, threat model, owner matrix và Golden Dataset v0.
+Đầu ra: PRD, Use Case Catalog, Data Classification Matrix, Identity/Scope Matrix, Provider Egress Matrix, Threat Model, Golden v0 và danh sách ngoài MVP.
+Gate G0: mỗi golden case có identity/scope/source/expected answer/evidence/deny/clarification; Data Owner duyệt KPI; Security Owner duyệt dữ liệu; chưa dùng PHI thật khi logging/security chưa đạt.
+14.3. Giai đoạn 1 — OSS Research và Architecture Spike
+Chạy POC Open Notebook, pgvector/RAGFlow, QuerySpec/Cube/Wren và LiteLLM. Xuất POC Report, ADR, TCO, dependency/upgrade risk và exit strategy.
+Gate G1: mỗi giải pháp có Adopt/Trial/Reference/Reject; quyết định không dựa trên GitHub stars; Architecture/Security phê duyệt.
+14.4. Giai đoạn 2 — Platform Foundation
+Backlog: Project Registry, IAM Adapter, Policy Engine/PEP, Audit/Observability, Model Registry, API skeleton, control-plane schema, manifest schema, CI/CD, migrations, secrets và dev/staging.
+Gate G2: missing/invalid claims bị từ chối; 100% cross-tenant/branch negative tests blocked; read-only DB account; không PHI trong URL/log/trace; mọi decision có policy version/trace.
+14.5. Giai đoạn 3A — Structured Data Q&A
+Backlog: Semantic Catalog, QuerySpec schema/planner, compiler, AST guard, Query Executor, RLS context, limits, cancel, numeric verifier, masking và Data Evidence.
+Gate G3A: critical KPI 100%; overall result accuracy ≥90%; không DDL/DML/object ngoài allowlist; mọi answer có scope/filter/as-of; query mơ hồ hỏi lại.
+14.6. Giai đoạn 3B — Document RAG
+Backlog: upload/quarantine/OCR/classification/lifecycle; chunk/version/ACL/embedding; hybrid retrieval/rerank/injection defense; exact citation; revoke/delete/reindex.
+Gate G3B: không chunk trái quyền vào context; Recall@5 ≥85%; citation precision ≥95%; revoked document biến mất theo SLA; trace đúng page/section/version.
+14.7. Giai đoạn 4 — Unified Chat, Widget và Admin
+Backlog: deterministic orchestrator; Answer Envelope; Web Component/JS SDK; SSE; citation panel; scope/as-of; feedback; project/semantic/policy/document/model/eval admin.
+Gate G4: mixed question kết hợp đúng data + regulation; tách nội bộ/ngoài; client không đổi project/scope; action nguy cơ có human approval; JSON contract valid.
+14.8. Giai đoạn 5 — Security Hardening và Pilot
+Test identity/authorization, query/database, document/retrieval, model/provider, cache/Redis, secrets/logging, backup/delete, rate limit, DoS, SBOM và dependency vulnerabilities.
+Pilot 15–30 users, 2–3 roles, một project trong hai tuần; daily critical review, weekly regression, feedback button và không autonomous action.
+Gate G5: zero unauthorized disclosure/PHI in telemetry; 100% audit completeness; KPI/accuracy/citation/latency đạt mục tiêu; có incident/rollback/disable-provider runbook; Data/Security Owner phê duyệt go-live.
+14.9. Giai đoạn 6 — Multi-project Productization
+Backlog: Connector SDK, project bootstrap CLI, policy/semantic/prompt templates, export/import, promotion, diff/approval/rollback, tenant-isolation kit, quota/budget dashboard, canary/shadow eval và onboarding guide.
+Gate G6: project thứ hai onboard ≤5 ngày; ≥80% bằng config; không sửa core cho domain/connector thông thường; project A không regression khi triển khai project B.
+15. Product Backlog và ưu tiên
+15.1. EPIC P0 — Bắt buộc cho pilot
+EPIC
+Kết quả
+EPIC-F01 Project Registry
+Manifest/version/environment/quota
+EPIC-F02 IAM Adapter
+IdentityContext và fail-closed
+EPIC-F03 Policy/PEP
+Data, document, model, output enforcement
+EPIC-S01 Semantic Catalog
+Approved metrics/dimensions/relationships
+EPIC-S02 QuerySpec
+Typed plan, clarification và deny
+EPIC-S03 Safe Query
+Compile, guard, execute read-only
+EPIC-R01 Document Lifecycle
+Upload đến publish/revoke
+EPIC-R02 ACL-aware Retrieval
+Hybrid search và exact citation
+EPIC-E01 Evidence Pack
+Data/document/external provenance
+EPIC-A01 Answer Envelope
+Scope/as-of/limitation/action
+EPIC-AUD Audit
+Data access trace và versions
+EPIC-EVAL Golden Evaluation
+Regression/security gate
+
+15.1. EPIC P0 — Bắt buộc cho pilot (tiếp)
+EPIC
+Kết quả
+EPIC-W01 Widget MVP
+SSE, citation, feedback
+
+15.2. P1 — Trước production diện rộng
+Admin Control Plane hoàn chỉnh.
+Hybrid reranking nâng cao.
+Model Gateway, cost/quota và provider dashboard.
+Human review queue và data-quality warnings.
+Prompt/model canary, configuration promotion.
+Backup/restore, incident automation và security dashboard.
+15.3. P2 — Sau khi chứng minh hiệu quả
+No-code semantic configuration.
+Connector marketplace.
+Internet research connector.
+Automatic chart/dashboard specification.
+Approved action tools, scheduled analysis và proactive alert.
+Knowledge graph hoặc advanced multi-agent chỉ khi có nhu cầu đã đo.
+
+16. Kế hoạch đánh giá và kiểm thử
+16.1. Golden Dataset
+Golden v0 có 30–50 cases cho vertical slice. Bộ pilot tối thiểu 150 cases:
+Nhóm
+Số lượng gợi ý
+Structured data
+60
+Document RAG
+40
+Mixed
+20
+Clarification
+10
+Permission denial
+10
+Insufficient/out-of-scope
+10
+
+Mỗi case chứa IdentityContext, question, expected intent, expected QuerySpec/document, expected result, allowed/forbidden sources, answer type, citations, denial/clarification, numeric tolerance, reviewer và approval date.
+16.2. Test pyramid
+Unit: domain rules, validators, compiler, masking, citation mapping.
+Contract: IAM, Policy, datasource, provider và connector adapters.
+Integration: PostgreSQL/RLS/pgvector/Redis/object storage/OPA/model stub.
+End-to-end: widget → API → policy → query/RAG → evidence → answer.
+Evaluation: golden dataset, model/prompt/semantic/policy regression.
+Security: horizontal/vertical escalation, injection, poisoned document, cache scope, egress và audit.
+Load/chaos: SSE concurrency, query quota, provider timeout, worker backlog và dependency outage.
+16.3. Security test bắt buộc
+Identity: token giả/hết hạn/thiếu claim, body scope tampering, replay, stale entitlement và IAM unavailable.
+Database: SQL injection, multi-statement, DDL/DML, pg_sleep, system catalog, nested complexity, RLS bypass, timeout/cancel và error exfiltration.
+Document: MIME spoof, polyglot, zip bomb, macro/script, indirect prompt injection, poisoned metadata, cross-ACL, superseded/revoked và SSRF khi import URL.
+Model: jailbreak, tool invocation, forbidden fallback, sensitive trace, malformed JSON, hallucinated number/source và timeout.
+Platform: cache key thiếu scope, Redis leak, secret in log, PHI in URL, backup/restore, delete propagation, rate limit/DoS, dependency/SBOM.
+16.4. Release version set
+Mỗi release pin application, project manifest, semantic, policy, prompt, model profile, embedding, retrieval config và evaluation suite versions. Thay đổi production theo flow Draft → Review → Test → Approve → Staging → Regression → Production → Monitor.
+
+17. Cơ cấu đội ngũ và cách tổ chức
+Vai trò
+Số lượng
+Trách nhiệm
+PO/BA
+1
+Use case, priority, acceptance
+Data/Domain Owner
+1–2 part-time
+KPI, document, expected answer
+Tech Lead/Architect
+1
+Contract, ADR, architecture
+Python Backend
+2
+ChatService, policy, query, API
+AI/ML Engineer
+1–2
+Planner, retrieval, model, eval
+Data Engineer/DBA
+1
+Views, RLS, quality, performance
+Frontend
+1
+Widget và Admin
+QA/Security Tester
+1–2
+Regression/adversarial/security
+DevOps/SRE
+0.5–1
+Infra, CI/CD, monitoring, backup
+Security/Privacy
+part-time
+Classification, threat, release
+
+Quy mô khuyến nghị 7–9 FTE cộng Data/Security Owner bán thời gian. Với 4–5 người, không chạy 3A/3B song song, bắt đầu 5–10 KPI, dùng pgvector và chưa thêm Cube/RAGFlow nếu chưa chứng minh cần.
+17.1. Definition of Ready
+Backlog item chỉ vào sprint khi có user/role, tenant/scope, data source, authorization rule, expected result/evidence, classification, acceptance, test data và owner xác nhận.
+17.2. Definition of Done
+Code review; unit/integration/permission tests; migration nếu cần; log/metric/trace phù hợp; không sensitive data; API/config docs cập nhật; golden regression đạt; rollback; Data Owner duyệt metric/document; Security Owner duyệt policy/provider/data flow.
+
+18. Risk Register
+Rủi ro
+Mức
+Biện pháp chính
+LLM/raw SQL nguy hiểm
+Rất cao
+QuerySpec, allowlist, AST, RLS
+Chỉ phân quyền bằng prompt
+Rất cao
+PDP/PEP và DB enforcement
+Cross-tenant qua cache/vector
+Rất cao
+Scope-aware key, ACL filter, tests
+Gửi PHI ra cloud
+Rất cao
+Classification, egress policy, local-only
+Prompt injection tài liệu
+Cao
+Treat as untrusted, no tool authority
+KPI sai nghĩa
+Cao
+Semantic owner, validation, version
+Dữ liệu stale/thiếu
+Cao
+Freshness, as-of, quality warning
+Model/prompt drift
+Cao
+Golden regression, canary, rollback
+Người dùng quá tin AI
+Cao
+Evidence, limitation, human approval
+OSS license/supply-chain
+Cao
+Legal review, SBOM, pin digest, exit
+Fork Open Notebook sâu
+Cao
+Reference only, adapter/pattern port
+RAGFlow vận hành nặng
+Trung bình
+POC với pgvector trước adopt
+
+18. Risk Register (tiếp)
+Rủi ro
+Mức
+Biện pháp chính
+Wren/Cube bị coi là policy
+Cao
+Luôn đặt sau Policy/Query Broker
+Query nặng ảnh hưởng DB
+Cao
+Replica, timeout, cost/quota
+Delete document nhưng vector còn
+Cao
+Propagation + reconciliation
+Thiếu Data Owner
+Cao
+Không publish nếu thiếu owner
+Scope MVP quá rộng
+Cao
+Một project, vài role, 10 KPI
+
+19. Điều kiện sẵn sàng và kế hoạch 30 ngày đầu
+19.1. Điều kiện trước Sprint 1
+Có Product Owner, Tech Lead, Data Owner và Security Owner.
+Có IAM token mẫu/tài liệu claims.
+Có dev environment và PostgreSQL test/reporting source.
+Có object storage test và dữ liệu đã khử định danh.
+Có 30–50 câu hỏi, 10 KPI và 20–50 tài liệu được phép.
+Có classification và provider-egress matrix.
+Có quyết định không dùng PHI production trước Gate G2.
+19.2. Kế hoạch 30 ngày
+Tuần 1: chọn pilot, roles, questions, metrics, documents; chốt owner/classification.
+Tuần 2: chốt IdentityContext, PolicyDecision, QuerySpec, EvidencePack, AnswerEnvelope; lập threat model và Golden v0.
+Tuần 3: xây vertical slice: question → identity → policy → QuerySpec → read-only query → evidence → deterministic answer.
+Tuần 4: benchmark Open Notebook, pgvector/RAGFlow, QuerySpec/Cube/Wren và local/cloud routing bằng cùng test set.
+Cuối tháng phải có bốn quyết định: pgvector hay RAGFlow; custom compiler hay Cube; vai trò của local model; data classification nào tuyệt đối không đi provider ngoài.
+20. Cổng nghiệm thu và Definition of Done cấp hệ thống
+Mốc
+Điều kiện
+M0 Scope Approved
+Use case, data, roles, classification và golden v0 được duyệt
+M1 Technology Decision
+POC/ADR/exit strategy hoàn tất
+M2 Secure Foundation
+IAM, policy, audit, model routing hoạt động
+M3 Structured MVP
+10 KPI chính xác, scoped và có evidence
+M4 RAG MVP
+Chunk ACL và exact citation đạt
+M5 Unified Pilot
+Widget trả data + document an toàn
+M6 Production Gate
+Security/eval/SLO/runbook đạt
+M7 Multi-project Ready
+Project 2 onboard chủ yếu bằng config
+
+System Definition of Done: không phát một câu trả lời production nếu chưa xác định được IdentityContext, PolicyDecision, Evidence Pack, thời điểm dữ liệu và version của project/semantic/prompt/model đã áp dụng.
+21. Các vấn đề phải được Product và Architecture Board chốt
+Project và users pilot.
+Patient-level use cases và minimum aggregation/group size.
+Approved providers theo classification/region/retention.
+Có cho external web search hay không.
+SLA, RPO, RTO, retention và deletion SLA.
+KPI, semantic owner và data freshness.
+Reporting replica/data mart strategy.
+Mức OCR/layout/table extraction cần thiết.
+pgvector hay RAGFlow; custom QuerySpec hay Cube.
+Quyền publish policy/semantic/document/model.
+Conversation content nào được phép lưu.
+Action nào cần human approval.
+
+Phụ lục A. Nguồn nghiên cứu chính thức
+Open Notebook repository
+Open Notebook architecture
+Open Notebook security
+Open Notebook multi-user tracking
+Open Policy Agent
+Cube Core
+Cube access control
+RAGFlow
+WrenAI
+LiteLLM
+Dify license
+Langfuse self-hosting
+SQLGlot
+Python supported versions
+Nguồn trên được rà soát để định hướng tại thời điểm 22/08/2026. Trước khi adopt production cần legal/security review, SBOM, pin version/digest và thử nghiệm lại.
+Phụ lục B. Security invariants
+Không IdentityContext hợp lệ thì không xử lý.
+Không PolicyDecision Allow thì không truy xuất.
+Không chạy SQL do user/model cung cấp trực tiếp.
+Không query ngoài approved reporting source.
+Không retrieval chunk trước ACL filter.
+Không external egress nếu chưa có explicit permission.
+Không trả claim quan trọng nếu thiếu evidence.
+Không hiển thị data ngoài scope dù model đã sinh.
+Không tự động thực thi AI action.
+Không PHI trong log, URL, trace hoặc object key.
+Không fallback restricted data từ local sang cloud.
+Schema discovery không tự publish production.
