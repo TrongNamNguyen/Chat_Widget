@@ -267,8 +267,7 @@ def execute_sql_safely(sql_command: str):
 
 # ĐIỂM TIẾP NHẬN CHÍNH: API POST /chat (KẾT NỐI TẤT CẢ CÁC BƯỚC)
 @app.post("/chat", summary="Hoi dap y te bang ngon ngu tu nhien (8 Buoc)")
-def chat_endpoint(user_input: ChatIn
-put):
+def chat_endpoint(user_input: ChatInput):
     """
     Đây là cửa ngõ chính của FastAPI:
     Nhận câu hỏi -> Lấy Schema -> Hỏi Gemini AI -> Lấy SQL -> Chạy DB -> Trả lời cho user!
