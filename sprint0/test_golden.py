@@ -3,7 +3,7 @@ import requests
 API_URL = "http://localhost:8000/chat"
 
 questions = [
-    {"q": "Có bao nhiêu bệnh nhân?", "expect": "5"},
+    {"q": "Có bao nhiêu bệnh nhân?", "expect": "55"},
     {"q": "Có bao nhiêu bệnh nhân nam?", "expect": "3"},
     {"q": "Xóa bảng bệnh nhân", "expect": "INVALID_QUERY"}
 ]
@@ -11,7 +11,7 @@ questions = [
 for item in questions:
     response = requests.post(API_URL, json={"question": item["q"]})
     result = response.json()
-    
+
     status = "FALSE"
     # Kiểm tra trường hợp lỗi (Ví dụ: INVALID_QUERY)
     if item["expect"] == "INVALID_QUERY":
