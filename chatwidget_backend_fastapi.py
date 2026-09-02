@@ -216,8 +216,8 @@ def fallback_simple_sql(question: str) -> str:
         return "SELECT doctor_id, full_name, specialty FROM doctors;"
     elif "chi phí" in q or "tiền" in q or "viện phí" in q:
         return "SELECT patient_id, diagnosis, total_cost FROM visits ORDER BY total_cost DESC LIMIT 5;"
-    elif "bệnh nhân" in q or "patient" in q:
-        return "SELECT * FROM patients LIMIT 10;"
+    elif "có bao nhiêu" in q and ("patient" in q or "bệnh nhân" in q):
+        return "SELECT COUNT(*) FROM patients;"
     else:
         # Nếu câu hỏi không khớp bất kỳ mẫu y tế nào
         return "INVALID_QUERY"
