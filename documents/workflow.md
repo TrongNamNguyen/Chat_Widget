@@ -1,43 +1,38 @@
-# 🏛️ Kiến Trúc Luồng Xử Lý Truy Vấn Dữ Liệu An Toàn
-
-```mermaid
-flowchart TD
-    classDef userFill fill:#2b5c8f,stroke:#333,stroke-width:1px,color:#fff;
-    classDef coreFill fill:#1e3a5f,stroke:#333,stroke-width:1px,color:#fff;
-    classDef geminiFill fill:#1a73e8,stroke:#333,stroke-width:1px,color:#fff;
-    classDef dbFill fill:#4a3b68,stroke:#333,stroke-width:1px,color:#fff;
-    classDef safeFill fill:#2d6a4f,stroke:#333,stroke-width:1px,color:#fff;
-
-    User["👤 User / Chat Widget<br/><i>'Có bao nhiêu bệnh nhân nam trên 50 tuổi?'</i>"]:::userFill
-    
-    subgraph Router_Layer ["Tầng 1: Lọc Schema & Cô Lập Dữ Liệu"]
-        FastAPI["⚡ FastAPI Control Plane & Router"]:::coreFill
-        SchemaJson[("📄 schema_definition.json<br/>(Cấu hình bảng cố định)")]:::coreFill
+graph TD
+    subgraph G0["GIAI ĐOẠN 0: OFFLINE / STARTUP INITIALIZATION"]
+        DB1[(PostgreSQL DB)] -->|1. Auto Inspection| INSP[SQLAlchemy Inspector]
+        INSP -->|2. Cache Metadata| RAM[Master Schema Cache in RAM]
+        INSP -->|3. Embedding Table Descriptions| EMB_M[Embedding Model]
+        EMB_M -->|4. Store Schema Vectors| PGV[(pgvector Table)]
     end
 
-    subgraph Gemini_Intent_Layer ["Tầng 2: Trích Xuất Ý Định (Gemini Structured API)"]
-        GeminiIntent["✨ Google Gemini API<br/><b>(Structured Output Mode)</b>"]:::geminiFill
-        PydanticGuard["🛡️ Pydantic & Whitelist Validator<br/>(Kiểm duyệt tên bảng/cột)"]:::safeFill
+    subgraph G1["GIAI ĐOẠN 1: VECTOR ROUTING & SCHEMA PRUNING"]
+        U[User / Chat Widget] -->|1. Prompt: 'Có bao nhiêu bệnh nhân...'| API[FastAPI Control Plane]
+        API -->|2. Vectorize Question| EMB_M
+        EMB_M -->|3. Cosine Search <=>| PGV
+        PGV -->|4. Top-K Tables: patients| ROUTER[Vector Table Router]
+        ROUTER -->|5. Request Table Slice| SLICER[In-Memory Schema Slicer]
+        RAM -.->|Supply Master Schema| SLICER
     end
 
-    subgraph Execution_Layer ["Tầng 3: Sinh Lệnh & Thực Thi SQL An Toàn"]
-        QueryBuilder["⚙️ Deterministic Query Builder Tool<br/>(SQLAlchemy Parameterized Query)"]:::safeFill
-        Postgres[("🗄️ PostgreSQL Database<br/>(Tài khoản Read-Only)")]:::dbFill
+    subgraph G2["GIAI ĐOẠN 2: INTENT EXTRACT & VALIDATION"]
+        SLICER -->|6. Inject 'patients' DDL Snippet| LLM[Ollama LLM - Skill: Intent Extractor]
+        LLM -->|7. Return QuerySpec JSON| PYD[Pydantic Guardrail & Validator]
+        PYD -->|8. Validated QuerySpec| QB[Query Builder Tool SQLAlchemy]
     end
 
-    subgraph Gemini_Summary_Layer ["Tầng 4: Tổng Hợp Phản Hồi"]
-        GeminiSummary["✨ Google Gemini API<br/><b>(Văn bản tự nhiên)</b>"]:::geminiFill
+    subgraph G3["GIAI ĐOẠN 3: SAFE EXECUTION & RESPONSE"]
+        QB -->|9. Parameterized SQL Query| READDB[(PostgreSQL Read-Only User)]
+        READDB -->|10. Raw Data Result: 125| COMP[Answer Composer & Evidence Pack]
+        COMP -->|11. Final Secure Answer| U
     end
 
-    %% Flow Connections
-    User -->|"1. Gửi câu hỏi"| FastAPI
-    SchemaJson -->|"2. Rút mã DDL hẹp (chỉ bảng 'patients')"| FastAPI
-    FastAPI -->|"3. Prompt + DDL hẹp + Pydantic Schema"| GeminiIntent
-    GeminiIntent -->|"4. Trả về QuerySpec JSON chuẩn 100%"| PydanticGuard
-    PydanticGuard -->|"5. Xác thực JSON hợp lệ"| QueryBuilder
-    QueryBuilder -->|"6. Thực thi Parameterized SQL"| Postgres
-    Postgres -->|"7. Trả dữ liệu thô (vd: 125)"| FastAPI
-    FastAPI -->|"8. Gửi dữ liệu thô + Câu hỏi ban đầu"| GeminiSummary
-    GeminiSummary -->|"9. Trả câu trả lời ngôn ngữ tự nhiên"| FastAPI
-    FastAPI -->|"10. Đóng gói JSON trả về Client"| User
-```
+    classDef core fill:#0066CC,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef security fill:#D9534F,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef storage fill:#2B5B84,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef ai fill:#008080,stroke:#fff,stroke-width:1px,color:#fff;
+
+    class API,SLICER,COMP core;
+    class PYD,QB security;
+    class DB1,PGV,READDB,RAM storage;
+    class LLM,EMB_M ai;
