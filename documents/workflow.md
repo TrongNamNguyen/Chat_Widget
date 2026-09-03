@@ -1,3 +1,6 @@
+# 🏛️ Kiến Trúc Luồng Xử Lý Truy Vấn Dữ Liệu An Toàn
+
+```mermaid
 flowchart TD
     classDef userFill fill:#2b5c8f,stroke:#333,stroke-width:1px,color:#fff;
     classDef coreFill fill:#1e3a5f,stroke:#333,stroke-width:1px,color:#fff;
@@ -35,4 +38,6 @@ flowchart TD
     QueryBuilder -->|"6. Thực thi Parameterized SQL"| Postgres
     Postgres -->|"7. Trả dữ liệu thô (vd: 125)"| FastAPI
     FastAPI -->|"8. Gửi dữ liệu thô + Câu hỏi ban đầu"| GeminiSummary
-    GeminiSummary -->|"9. Trả câu trả lời ngôn ngữ tự nhiên"| User
+    GeminiSummary -->|"9. Trả câu trả lời ngôn ngữ tự nhiên"| FastAPI
+    FastAPI -->|"10. Đóng gói JSON trả về Client"| User
+```
