@@ -1,3 +1,6 @@
+# 🏛️ Kiến Trúc Luồng Xử Lý Truy Vấn Dữ Liệu An Toàn
+
+```mermaid
 graph TD
     subgraph G0["GIAI ĐOẠN 0: OFFLINE / STARTUP INITIALIZATION"]
         DB1[(PostgreSQL DB)] -->|1. Auto Inspection| INSP[SQLAlchemy Inspector]
@@ -7,9 +10,9 @@ graph TD
     end
 
     subgraph G1["GIAI ĐOẠN 1: VECTOR ROUTING & SCHEMA PRUNING"]
-        U[User / Chat Widget] -->|1. Prompt: 'Có bao nhiêu bệnh nhân...'| API[FastAPI Control Plane]
+        U[User / Chat Widget] -->|1. Prompt: Có bao nhiêu bệnh nhân...| API[FastAPI Control Plane]
         API -->|2. Vectorize Question| EMB_M
-        EMB_M -->|3. Cosine Search <=>| PGV
+        EMB_M -->|3. Cosine Similarity Search| PGV
         PGV -->|4. Top-K Tables: patients| ROUTER[Vector Table Router]
         ROUTER -->|5. Request Table Slice| SLICER[In-Memory Schema Slicer]
         RAM -.->|Supply Master Schema| SLICER
@@ -27,12 +30,15 @@ graph TD
         COMP -->|11. Final Secure Answer| U
     end
 
+    classDef user fill:#2B5C8F,stroke:#fff,stroke-width:1px,color:#fff;
     classDef core fill:#0066CC,stroke:#fff,stroke-width:1px,color:#fff;
     classDef security fill:#D9534F,stroke:#fff,stroke-width:1px,color:#fff;
     classDef storage fill:#2B5B84,stroke:#fff,stroke-width:1px,color:#fff;
     classDef ai fill:#008080,stroke:#fff,stroke-width:1px,color:#fff;
 
-    class API,SLICER,COMP core;
+    class U user;
+    class API,SLICER,COMP,ROUTER,INSP core;
     class PYD,QB security;
     class DB1,PGV,READDB,RAM storage;
     class LLM,EMB_M ai;
+```
