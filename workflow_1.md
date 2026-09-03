@@ -32,7 +32,7 @@ graph TD
     VectorDB -->|"4. Tìm kiếm Cosine Distance<br/>Top bảng liên quan"| ContextBuilder
     ContextBuilder -->|"Context DDL Hẹp"| Gemini1
 
-
+    Router -->|"Truyền câu hỏi"| Gemini1
 
     Gemini1 -->|"5. Trả QuerySpec JSON"| Retry
     Retry -->|"Lỗi Pydantic<br/>Retry 2 lần + Báo lỗi"| Gemini1
