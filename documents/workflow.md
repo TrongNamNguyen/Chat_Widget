@@ -1,7 +1,7 @@
 flowchart TD
     classDef userFill fill:#2b5c8f,stroke:#333,stroke-width:1px,color:#fff;
     classDef coreFill fill:#1e3a5f,stroke:#333,stroke-width:1px,color:#fff;
-    classDef aiFill fill:#0d5c58,stroke:#333,stroke-width:1px,color:#fff;
+    classDef geminiFill fill:#1a73e8,stroke:#333,stroke-width:1px,color:#fff;
     classDef dbFill fill:#4a3b68,stroke:#333,stroke-width:1px,color:#fff;
     classDef safeFill fill:#2d6a4f,stroke:#333,stroke-width:1px,color:#fff;
 
@@ -9,25 +9,30 @@ flowchart TD
     
     subgraph Router_Layer ["Tầng 1: Lọc Schema & Cô Lập Dữ Liệu"]
         FastAPI["⚡ FastAPI Control Plane & Router"]:::coreFill
-        SchemaJson[("📄 schema_definition.json<br/>(File cấu hình cố định)")]:::coreFill
+        SchemaJson[("📄 schema_definition.json<br/>(Cấu hình bảng cố định)")]:::coreFill
     end
 
-    subgraph AI_Layer ["Tầng 2: Trích Xuất Ý Định (Intent Extraction)"]
-        LLM["🤖 Ollama LLM<br/><b>Skill: QuerySpec Generator</b>"]:::aiFill
-        Pydantic["🛡️ Pydantic Guardrail<br/>(Kiểm tra Whitelist Bảng/Cột)"]:::safeFill
+    subgraph Gemini_Intent_Layer ["Tầng 2: Trích Xuất Ý Định (Gemini Structured API)"]
+        GeminiIntent["✨ Google Gemini API<br/><b>(Structured Output Mode)</b>"]:::geminiFill
+        PydanticGuard["🛡️ Pydantic & Whitelist Validator<br/>(Kiểm duyệt tên bảng/cột)"]:::safeFill
     end
 
-    subgraph Execution_Layer ["Tầng 3: Sinh Lệnh & Truy Xuất An Toàn"]
-        Builder["⚙️ Deterministic Query Builder Tool<br/>(SQLAlchemy Parameterized Query)"]:::safeFill
+    subgraph Execution_Layer ["Tầng 3: Sinh Lệnh & Thực Thi SQL An Toàn"]
+        QueryBuilder["⚙️ Deterministic Query Builder Tool<br/>(SQLAlchemy Parameterized Query)"]:::safeFill
         Postgres[("🗄️ PostgreSQL Database<br/>(Tài khoản Read-Only)")]:::dbFill
     end
 
-    %% Flow connections
+    subgraph Gemini_Summary_Layer ["Tầng 4: Tổng Hợp Phản Hồi"]
+        GeminiSummary["✨ Google Gemini API<br/><b>(Văn bản tự nhiên)</b>"]:::geminiFill
+    end
+
+    %% Flow Connections
     User -->|"1. Gửi câu hỏi"| FastAPI
-    SchemaJson -->|"2. Trích xuất duy nhất schema bảng 'patients'"| FastAPI
-    FastAPI -->|"3. Gửi Prompt + Schema hẹp"| LLM
-    LLM -->|"4. Trả về QuerySpec JSON"| Pydantic
-    Pydantic -->|"5. Xác thực JSON hợp lệ"| Builder
-    Builder -->|"6. Sinh & Thực thi Parameterized SQL"| Postgres
-    Postgres -->|"7. Dữ liệu thô (vd: 125)"| FastAPI
-    FastAPI -->|"8. Trả lời văn bản tự nhiên"| User
+    SchemaJson -->|"2. Rút mã DDL hẹp (chỉ bảng 'patients')"| FastAPI
+    FastAPI -->|"3. Prompt + DDL hẹp + Pydantic Schema"| GeminiIntent
+    GeminiIntent -->|"4. Trả về QuerySpec JSON chuẩn 100%"| PydanticGuard
+    PydanticGuard -->|"5. Xác thực JSON hợp lệ"| QueryBuilder
+    QueryBuilder -->|"6. Thực thi Parameterized SQL"| Postgres
+    Postgres -->|"7. Trả dữ liệu thô (vd: 125)"| FastAPI
+    FastAPI -->|"8. Gửi dữ liệu thô + Câu hỏi ban đầu"| GeminiSummary
+    GeminiSummary -->|"9. Trả câu trả lời ngôn ngữ tự nhiên"| User
