@@ -482,3 +482,299 @@ Bản V1 đã chốt hành vi hệ thống, chưa chốt hai hợp đồng dữ 
 - Chi tiết Pydantic `QuerySpec` (các field, phép filter cho phép, join, sort, limit).
 
 Hai hợp đồng này phải thiết kế trước khi viết compiler và prompt. Không được để Gemini “tự nghĩ” field ngoài hợp đồng.
+
+---
+
+## 10. Phụ lục: Đặc tả Chi tiết Luồng Hoạt động & Code Mô phỏng (Workflow Simulation)
+
+### 10.1. Sơ đồ Luồng End-to-End (Mermaid Sequence & Flowchart)
+
+```mermaid
+flowchart TD
+    User([1. Người dùng nhập câu hỏi]) --> W0[Bước 0: Chat Widget Frontend]
+    W0 --> API[FastAPI Gateway POST /api/chat]
+    
+    API --> B1[Bước 1: Normalize & Redis Exact Cache]
+    B1 -- "Cache HIT (p95 < 20ms)" --> SanitizeCache[HTML Sanitizer] --> OutputCache([Trả Widget ngay])
+    
+    B1 -- "Cache MISS" --> B2[Bước 2: Prompt Engine + Schema Metadata]
+    B2 --> B3[Bước 3: Gemini sinh QuerySpec JSON]
+    
+    B3 --> V1{Bước 4: Pydantic Validation}
+    V1 -- "Hợp lệ" --> B5[Bước 5: QuerySpec Compiler -> SQL]
+    V1 -- "Lỗi cú pháp/field" --> Retry1{Còn lượt Retry? (Max 2)}
+    
+    B5 --> V2{Bước 6: SQL Guardrail - sqlglot AST}
+    V2 -- "Hợp lệ SELECT only + Inject LIMIT 100" --> B7[Bước 7: PostgreSQL Read-only Executor]
+    V2 -- "Phát hiện DDL/DML/Cấm" --> Retry1
+    
+    Retry1 -- "Còn lượt (<=2)" --> B3
+    Retry1 -- "Hết lượt (>2)" --> FallbackErr([Fallback an toàn / Báo lỗi])
+    
+    B7 --> V3{Bước 8: Kiểm tra kết quả DB}
+    V3 -- "Rows = 0 (Rỗng)" --> B8A[Template cố định: Không có dữ liệu]
+    V3 -- "Rows > 0 (Có data)" --> B8B[Bước 9: Gemini Format Natural Language]
+    
+    B8B --> V4{Bước 10: Deterministic Grounding Checker}
+    V4 -- "FAIL (Ảo giác con số/tên)" --> RetryFormat{Retry Format (Max 1)}
+    RetryFormat -- "Thử lại" --> B8B
+    RetryFormat -- "Vẫn fail" --> FallbackTable[Trả bảng thô + Cảnh báo]
+    
+    V4 -- "PASS (100% khớp dữ liệu)" --> B11[Bước 11: HTML Sanitizer]
+    B8A --> B11
+    
+    B11 --> CacheSet[Ghi Redis Cache]
+    B11 --> ReturnMsg([Trả câu trả lời về Widget])
+    
+    ReturnMsg -. Ghi log toàn bộ span .-> Langfuse[(Langfuse Observability)]
+    FallbackErr -. Ghi log .-> Langfuse
+```
+
+---
+
+### 10.2. Bảng Ma trận Input / Output Từng Bước
+
+| Bước | Tên Trạm / Module | Input | Output | Chốt chặn an toàn |
+| :---: | :--- | :--- | :--- | :--- |
+| **0** | **Frontend Capture** | Câu hỏi thô từ người dùng | Payload HTTP JSON `POST /api/chat` | Hostile CSS isolation, Client sanitization |
+| **1** | **Normalize & Cache** | Raw question string | Normalized Key + Payload cached (nếu Hit) | Tránh gọi thừa LLM/DB |
+| **2** | **Prompt Engine** | Câu hỏi + `schema_metadata.json` | System & User Prompts chuẩn hoá | Ẩn schema vật lý DB thật |
+| **3** | **QuerySpec Gen** | System/User Prompts | Raw JSON String | JSON Mode (`response_mime_type`) |
+| **4** | **Pydantic Validation** | Raw JSON String | `QuerySpec` Object (Valid) | Bắt lỗi Enum, Cột lạ, Sai kiểu |
+| **5** | **SQL Compiler** | `QuerySpec` Object | PostgreSQL Query AST/String | Parameterized, Whitelist toán tử |
+| **6** | **SQL Guardrail** | Generated SQL String | Safe SQL (Root `SELECT`, `LIMIT <= 100`) | sqlglot AST chặn triệt để DDL/DML |
+| **7** | **DB Execution** | Safe SQL String | Raw JSON Rows `List[Dict]` | User `readonly`, `statement_timeout = 5s` |
+| **8** | **NL Formatting** | Raw Rows + Câu hỏi gốc | Draft Answer (NL / Markdown) | Template cứng nếu rows rỗng |
+| **9** | **Grounding Check** | Draft Answer + Raw Rows | `Boolean` (Pass/Fail) | Thuật toán đối soát tập giá trị thực tế |
+| **10**| **HTML Sanitize** | Clean Text / Markdown | Safe HTML String | Xóa `script`, `iframe`, inline handler |
+| **11**| **Cache & Trace** | Safe HTML + Full metadata | HTTP Response + Langfuse Trace | Chỉ cache luồng Grounding PASS |
+
+---
+
+### 10.3. Code Python Mô phỏng Trọn vẹn Luồng Xử Lý (Workflow Simulation Script)
+
+```python
+"""
+Mô phỏng trọn vẹn luồng xử lý Backend Pipeline (V1)
+Dùng để trình bày, demo và kiểm chứng kiến trúc với Mentor.
+"""
+import re
+import json
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field, ValidationError
+import sqlglot
+from sqlglot import exp
+
+# ==============================================================================
+# 1. MODELS & SCHEMAS
+# ==============================================================================
+class FilterCondition(BaseModel):
+    column: str
+    operator: str = Field(..., pattern="^(EQ|NEQ|GT|LT|GTE|LTE|ILIKE|IN)$")
+    value: Any
+
+class QuerySpec(BaseModel):
+    target_table: str = Field(..., pattern="^(patients|doctors|appointments)$")
+    selected_columns: List[str]
+    filters: List[FilterCondition] = []
+    limit: Optional[int] = Field(default=10, le=100)
+
+# ==============================================================================
+# 2. WORKFLOW COMPONENTS
+# ==============================================================================
+class Normalizer:
+    @staticmethod
+    def normalize_question(q: str) -> str:
+        q = q.strip()
+        q = re.sub(r'\s+', ' ', q)
+        q = re.sub(r'[?!.]+$', '', q).strip()
+        return q
+
+class MockRedisCache:
+    def __init__(self):
+        self._store = {}
+
+    def get(self, key: str) -> Optional[dict]:
+        return self._store.get(f"cache:exact:{key}")
+
+    def set(self, key: str, value: dict):
+        self._store[f"cache:exact:{key}"] = value
+
+class MockPromptEngine:
+    @staticmethod
+    def build_prompt(question: str, metadata: dict) -> str:
+        return f"[System Prompt: Only output QuerySpec JSON for {metadata['version']}] Question: {question}"
+
+class MockGeminiLLM:
+    @staticmethod
+    def generate_query_spec(prompt: str) -> str:
+        # Giả lập LLM sinh JSON QuerySpec cho câu hỏi tìm bác sĩ Tim Mạch
+        return json.dumps({
+            "target_table": "doctors",
+            "selected_columns": ["full_name", "department", "phone"],
+            "filters": [
+                {"column": "department", "operator": "ILIKE", "value": "%Tim Mạch%"},
+                {"column": "is_active", "operator": "EQ", "value": True}
+            ],
+            "limit": 10
+        })
+
+    @staticmethod
+    def format_natural_language(question: str, raw_rows: List[Dict]) -> str:
+        # Giả lập LLM diễn giải câu trả lời
+        return (
+            "Khoa Tim Mạch hiện có 2 bác sĩ đang làm việc:\n"
+            "- **BS. Nguyễn Văn A** (SĐT: 0901234567)\n"
+            "- **BS. Trần Thị B** (SĐT: 0907654321)"
+        )
+
+class QueryCompiler:
+    OP_MAP = {
+        "EQ": "=",
+        "NEQ": "!=",
+        "GT": ">",
+        "LT": "<",
+        "GTE": ">=",
+        "LTE": "<=",
+        "ILIKE": "ILIKE"
+    }
+
+    @classmethod
+    def compile(cls, spec: QuerySpec) -> str:
+        cols = ", ".join(spec.selected_columns) if spec.selected_columns else "*"
+        where_clauses = []
+        for f in spec.filters:
+            op = cls.OP_MAP.get(f.operator, "=")
+            val = f"'{f.value}'" if isinstance(f.value, str) else str(f.value)
+            where_clauses.append(f"{f.column} {op} {val}")
+        
+        where_str = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        limit = min(spec.limit or 100, 100)
+        return f"SELECT {cols} FROM {spec.target_table}{where_str} LIMIT {limit};"
+
+class SQLGuardrail:
+    @staticmethod
+    def validate_and_enforce(sql: str) -> str:
+        parsed = sqlglot.parse_one(sql, read="postgres")
+        
+        # 1. Bắt buộc root node là SELECT
+        if not isinstance(parsed, exp.Select):
+            raise ValueError("Guardrail Error: Root node must be a SELECT statement.")
+        
+        # 2. Chặn các node DDL/DML độc hại
+        forbidden_nodes = (exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter, exp.Command)
+        if any(parsed.find(node) for node in forbidden_nodes):
+            raise ValueError("Guardrail Error: Forbidden DDL/DML detected.")
+        
+        # 3. Ép LIMIT <= 100
+        limit_exp = parsed.args.get("limit")
+        if not limit_exp or int(limit_exp.expression.this) > 100:
+            parsed = parsed.limit(100)
+            
+        return parsed.sql("postgres")
+
+class MockPostgresDB:
+    @staticmethod
+    def execute_readonly(sql: str) -> List[Dict[str, Any]]:
+        # Giả lập thực thi trong PostgreSQL Role hospital_bot_readonly (5s timeout)
+        return [
+            {"full_name": "BS. Nguyễn Văn A", "department": "Tim Mạch", "phone": "0901234567"},
+            {"full_name": "BS. Trần Thị B", "department": "Tim Mạch", "phone": "0907654321"}
+        ]
+
+class DeterministicGrounding:
+    @staticmethod
+    def verify(draft_answer: str, raw_rows: List[Dict[str, Any]]) -> bool:
+        if not raw_rows:
+            return True # Template rỗng không cần check
+        
+        # Trích xuất toàn bộ fact values từ database rows
+        fact_values = set()
+        for row in raw_rows:
+            for v in row.values():
+                fact_values.add(str(v).lower())
+        
+        # Kiểm tra con số / từ khóa chính
+        # Đơn giản hóa: Đảm bảo các tên riêng xuất hiện trong text đều có trong DB
+        return True # Giả lập pass grounding deterministic
+
+class HTMLSanitizer:
+    @staticmethod
+    def sanitize(text: str) -> str:
+        # Loại bỏ script, iframe, inline event handlers
+        clean = re.sub(r'<script.*?>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        clean = re.sub(r'<iframe.*?>.*?</iframe>', '', clean, flags=re.DOTALL | re.IGNORECASE)
+        return clean
+
+# ==============================================================================
+# 3. PIPELINE ORCHESTRATION (END-TO-END EXECUTION)
+# ==============================================================================
+def process_chat_request(user_input: str, session_id: str = "sess_001") -> dict:
+    redis = MockRedisCache()
+    
+    # Bước 1: Normalization & Cache Lookup
+    normalized_q = Normalizer.normalize_question(user_input)
+    cached_payload = redis.get(normalized_q)
+    if cached_payload:
+        return {"status": "success", "cached": True, "data": cached_payload}
+    
+    # Bước 2: Nạp Metadata & Prompt Engine
+    metadata = {"version": "1.0.0", "tables": ["patients", "doctors", "appointments"]}
+    prompt = MockPromptEngine.build_prompt(normalized_q, metadata)
+    
+    # Bước 3 & 4: LLM sinh QuerySpec + Pydantic Validate (Self-correction tối đa 2 lần)
+    max_retries = 2
+    query_spec = None
+    for attempt in range(max_retries + 1):
+        try:
+            raw_spec_json = MockGeminiLLM.generate_query_spec(prompt)
+            query_spec = QuerySpec.model_validate_json(raw_spec_json)
+            break
+        except (ValidationError, Exception) as err:
+            if attempt == max_retries:
+                return {"status": "error", "message": "Không thể phân tích truy vấn sau 2 lần thử."}
+            prompt += f"\n[Error in previous attempt: {str(err)}. Please fix.]"
+
+    # Bước 5 & 6: Compiler & SQL Guardrail (sqlglot)
+    raw_sql = QueryCompiler.compile(query_spec)
+    safe_sql = SQLGuardrail.validate_and_enforce(raw_sql)
+    
+    # Bước 7: DB Execution (Read-only + Timeout)
+    raw_rows = MockPostgresDB.execute_readonly(safe_sql)
+    
+    # Bước 8: Result Branching & Natural Language Formatting
+    if not raw_rows:
+        draft_answer = "Hệ thống không tìm thấy thông tin phù hợp trong cơ sở dữ liệu."
+    else:
+        draft_answer = MockGeminiLLM.format_natural_language(normalized_q, raw_rows)
+    
+    # Bước 9: Deterministic Grounding Checker
+    is_grounded = DeterministicGrounding.verify(draft_answer, raw_rows)
+    if not is_grounded:
+        draft_answer = f"Bảng dữ liệu trích xuất:\n{json.dumps(raw_rows, ensure_ascii=False)}"
+    
+    # Bước 10 & 11: Sanitize, Cache & Return
+    safe_html = HTMLSanitizer.sanitize(draft_answer)
+    
+    final_payload = {
+        "html_content": safe_html,
+        "grounded": is_grounded,
+        "sql_executed": safe_sql
+    }
+    
+    # Chỉ cache khi luồng thành công và grounded
+    if is_grounded:
+        redis.set(normalized_q, final_payload)
+        
+    return {"status": "success", "cached": False, "data": final_payload}
+
+# ==============================================================================
+# RUN DEMO
+# ==============================================================================
+if __name__ == "__main__":
+    sample_query = "  cho tôi xem danh sách bác sĩ khoa Tim Mạch??  "
+    print(">>> INPUT:", sample_query)
+    result = process_chat_request(sample_query)
+    print(">>> OUTPUT:", json.dumps(result, indent=2, ensure_ascii=False))
+```
+
