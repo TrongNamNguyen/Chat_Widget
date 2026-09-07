@@ -487,47 +487,99 @@ Hai hợp đồng này phải thiết kế trước khi viết compiler và prom
 
 ## 10. Phụ lục: Đặc tả Chi tiết Luồng Hoạt động & Code Mô phỏng (Workflow Simulation)
 
-### 10.1. Sơ đồ Luồng End-to-End (Mermaid Sequence & Flowchart)
+### 10.1. Sơ đồ Luồng End-to-End (Mermaid Flowchart & Sequence Diagram)
+
+#### A. Sơ đồ Khối Điều Khiển (Flowchart)
 
 ```mermaid
 flowchart TD
     User([1. Người dùng nhập câu hỏi]) --> W0[Bước 0: Chat Widget Frontend]
-    W0 --> API[FastAPI Gateway POST /api/chat]
+    W0 --> API[FastAPI Gateway: POST /api/chat]
     
     API --> B1[Bước 1: Normalize & Redis Exact Cache]
-    B1 -- "Cache HIT (p95 < 20ms)" --> SanitizeCache[HTML Sanitizer] --> OutputCache([Trả Widget ngay])
+    B1 -- "Cache HIT (p95 < 20ms)" --> SanitizeCache[HTML Sanitizer]
+    SanitizeCache --> OutputCache([Trả Widget ngay])
     
     B1 -- "Cache MISS" --> B2[Bước 2: Prompt Engine + Schema Metadata]
     B2 --> B3[Bước 3: Gemini sinh QuerySpec JSON]
     
-    B3 --> V1{Bước 4: Pydantic Validation}
+    B3 --> V1{Bước 4: Pydantic Validate}
     V1 -- "Hợp lệ" --> B5[Bước 5: QuerySpec Compiler -> SQL]
-    V1 -- "Lỗi cú pháp/field" --> Retry1{Còn lượt Retry? (Max 2)}
+    V1 -- "Sai field / Lỗi cú pháp" --> Retry1{Còn lượt Retry? (Tối đa 2)}
     
-    B5 --> V2{Bước 6: SQL Guardrail - sqlglot AST}
-    V2 -- "Hợp lệ SELECT only + Inject LIMIT 100" --> B7[Bước 7: PostgreSQL Read-only Executor]
+    B5 --> V2{Bước 6: SQL Guardrail AST}
+    V2 -- "Hợp lệ SELECT only + LIMIT <= 100" --> B7[Bước 7: PostgreSQL Read-only Executor]
     V2 -- "Phát hiện DDL/DML/Cấm" --> Retry1
     
-    Retry1 -- "Còn lượt (<=2)" --> B3
-    Retry1 -- "Hết lượt (>2)" --> FallbackErr([Fallback an toàn / Báo lỗi])
+    Retry1 -- "Còn lượt (<= 2)" --> B3
+    Retry1 -- "Hết lượt (> 2)" --> FallbackErr([Fallback an toàn / Báo lỗi])
     
     B7 --> V3{Bước 8: Kiểm tra kết quả DB}
-    V3 -- "Rows = 0 (Rỗng)" --> B8A[Template cố định: Không có dữ liệu]
+    V3 -- "Rows = 0 (Rỗng)" --> B8A[Template cố định: Không tìm thấy dữ liệu]
     V3 -- "Rows > 0 (Có data)" --> B8B[Bước 9: Gemini Format Natural Language]
     
-    B8B --> V4{Bước 10: Deterministic Grounding Checker}
-    V4 -- "FAIL (Ảo giác con số/tên)" --> RetryFormat{Retry Format (Max 1)}
+    B8B --> V4{Bước 10: Deterministic Grounding}
+    V4 -- "FAIL (Ảo giác con số/tên)" --> RetryFormat{Retry Format (Tối đa 1)}
     RetryFormat -- "Thử lại" --> B8B
     RetryFormat -- "Vẫn fail" --> FallbackTable[Trả bảng thô + Cảnh báo]
     
-    V4 -- "PASS (100% khớp dữ liệu)" --> B11[Bước 11: HTML Sanitizer]
+    V4 -- "PASS (Khớp dữ liệu)" --> B11[Bước 11: HTML Sanitizer]
     B8A --> B11
     
     B11 --> CacheSet[Ghi Redis Cache]
     B11 --> ReturnMsg([Trả câu trả lời về Widget])
     
-    ReturnMsg -. Ghi log toàn bộ span .-> Langfuse[(Langfuse Observability)]
-    FallbackErr -. Ghi log .-> Langfuse
+    ReturnMsg -. Ghi log trace .-> Langfuse[(Langfuse Observability)]
+    FallbackErr -. Ghi log trace .-> Langfuse
+```
+
+#### B. Sơ đồ Trình Tự Thời Gian (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant Widget as Chat Widget (Shadow DOM)
+    participant API as FastAPI Gateway
+    participant Redis as Redis Cache
+    participant LLM as Gemini API
+    participant Compiler as Compiler & Guardrail
+    participant DB as PostgreSQL (Read-only)
+    participant Obs as Langfuse
+
+    User->>Widget: Nhập câu hỏi tra cứu
+    Widget->>API: POST /api/chat {session_id, message}
+    
+    API->>Redis: GET cache:exact:{normalized_q}
+    alt Cache HIT (p95 < 20ms)
+        Redis-->>API: Trả cached HTML payload
+        API-->>Widget: HTTP 200 {cached: true, html}
+        Widget-->>User: Hiển thị câu trả lời ngay
+    else Cache MISS
+        API->>LLM: Gửi Prompt + schema_metadata.json
+        LLM-->>API: Trả QuerySpec JSON
+        
+        API->>Compiler: Pydantic Validate + Compile SQL + AST Guardrail
+        Compiler-->>API: Safe SQL (SELECT ... LIMIT 100)
+        
+        API->>DB: Thực thi Safe SQL (Timeout 5s)
+        DB-->>API: Trả raw_rows (List of dicts)
+        
+        alt raw_rows rỗng
+            API->>API: Sử dụng Template cố định
+        else raw_rows có dữ liệu
+            API->>LLM: Format NL từ raw_rows
+            LLM-->>API: Draft Answer
+            API->>API: Deterministic Grounding Check
+        end
+        
+        API->>API: HTML Sanitizer (DOMPurify/Bleach)
+        API->>Redis: SET cache:exact:{normalized_q} (Chỉ khi Grounded PASS)
+        API-->>Widget: HTTP 200 {cached: false, html, grounded: true}
+        Widget-->>User: Render câu trả lời an toàn
+    end
+    
+    API-.->Obs: Async push trace & latency spans
 ```
 
 ---
