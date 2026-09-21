@@ -7,6 +7,11 @@
 
 ## 1. Sơ Đồ Kiến Trúc Luồng Xử Lý (Workflow Diagram)
 
+![Sơ Đồ Kiến Trúc Luồng Xử Lý](./workflow.svg)
+
+<details>
+<summary><b>🔍 Bấm vào đây để xem mã nguồn Mermaid</b></summary>
+
 ```mermaid
 flowchart TD
     %% ==========================================
@@ -133,6 +138,7 @@ flowchart TD
     class Z fallback;
     class R,N success;
 ```
+</details>
 
 ---
 

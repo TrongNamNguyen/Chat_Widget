@@ -1,6 +1,16 @@
 # 🏛️ Kiến Trúc Luồng Xử Lý Truy Vấn Dữ Liệu An Toàn (Production Pipeline)
 
-> Tài liệu chi tiết và ma trận phân tích 9 bước: Xem tại [workflow_pipeline.md](file:///c:/Chat_Widget/documents/workflow_pipeline.md).
+> Tài liệu chi tiết và ma trận phân tích 9 bước: Xem tại [workflow_pipeline.md](./workflow_pipeline.md).
+
+---
+
+## 🖼️ Hình Ảnh Sơ Đồ Kiến Trúc (Rendered SVG)
+
+![Sơ Đồ Kiến Trúc Luồng Xử Lý](./workflow.svg)
+
+---
+
+## 📝 Mã Nguồn Sơ Đồ (Mermaid Source Code)
 
 ```mermaid
 flowchart TD
