@@ -8,73 +8,109 @@
 ## 1. Sơ Đồ Kiến Trúc Luồng Xử Lý (Workflow Diagram)
 
 ```mermaid
-graph TD
+flowchart TD
     %% ==========================================
     %% BƯỚC 1: TIẾP NHẬN & KIỂM TRA QUYỀN
     %% ==========================================
     subgraph SG1 ["Bước 1: Tiếp nhận & Kiểm tra Quyền"]
-        A["Widget: Gửi câu hỏi + Token/Session"] --> B("FastAPI: Tiền xử lý & Chuẩn hóa chuỗi")
-        B --> C{"OPA: Đánh giá Policy"}
-        C -- "Từ chối" --> Z(["Luồng Fallback an toàn"])
+        A["Widget: Gửi câu hỏi + Token/Session"]
+        B["FastAPI: Tiền xử lý & Chuẩn hóa chuỗi"]
+        C{"OPA: Đánh giá Policy"}
+        A --> B
+        B --> C
     end
 
     %% ==========================================
     %% BƯỚC 2: PHÂN LUỒNG CACHE
     %% ==========================================
     subgraph SG2 ["Bước 2: Phân luồng Cache"]
-        C -- "Cho phép" --> D{"Redis: Tìm Cache Hit"}
-        D -- "Trúng Cache (p95 < 20ms)" --> T
+        D{"Redis: Tìm Cache Hit"}
     end
 
     %% ==========================================
     %% BƯỚC 3 & 4: SINH & KIỂM DUYỆT QUERYSPEC
     %% ==========================================
     subgraph SG3 ["Bước 3 & 4: Sinh & Kiểm duyệt QuerySpec"]
-        D -- "Trượt Cache" --> E("LiteLLM Gateway: Định tuyến request")
-        E --> F["Gemini: Sinh QuerySpec JSON"]
-        F --> G{"Pydantic: Validate Cấu trúc"}
-        G -- "Lỗi logic/Kiểu dữ liệu" --> H("Self-correction tối đa 2 lần")
-        H -- "Sửa lỗi" --> E
-        H -- "Hết lượt retry" --> Z
+        E["LiteLLM Gateway: Định tuyến request"]
+        F["Gemini: Sinh QuerySpec JSON"]
+        G{"Pydantic: Validate Cấu trúc"}
+        H["Self-correction tối đa 2 lần"]
+        E --> F
+        F --> G
+        G -->|Lỗi logic / Kiểu dữ liệu| H
+        H -->|Sửa lỗi| E
     end
 
     %% ==========================================
     %% BƯỚC 5 & 6: BIÊN DỊCH SQL & GUARDRAIL
     %% ==========================================
     subgraph SG4 ["Bước 5 & 6: Biên dịch SQL & Guardrail"]
-        G -- "Chuẩn JSON" --> I("Compiler: Dịch SQL + Tiêm Mandatory Filters")
-        I --> J{"sqlglot: Quét AST Bảo mật"}
-        J -- "Lệnh cấm DDL/DML" --> Z
-        J -- "Chỉ chứa SELECT" --> K("Tự động ép LIMIT <= 100")
+        I["Compiler: Dịch SQL + Tiêm Mandatory Filters"]
+        J{"sqlglot: Quét AST Bảo mật"}
+        K["Tự động ép LIMIT tối đa 100"]
+        I --> J
+        J -->|Chỉ chứa SELECT| K
     end
 
     %% ==========================================
     %% BƯỚC 7 & 8: THỰC THI, DIỄN GIẢI & ĐÓNG GÓI
     %% ==========================================
     subgraph SG5 ["Bước 7 & 8: Thực thi, Diễn giải & Đóng gói"]
-        K --> L[("PostgreSQL: Thực thi tài khoản ReadOnly, Timeout 5s")]
-        L --> M{"Raw Rows"}
-        M -- "Rỗng (0 dòng)" --> N["Sử dụng Template tĩnh"]
-        M -- "Có dữ liệu" --> O("LiteLLM: Format tiếng Việt tự nhiên")
-        O --> P{"Grounding: Đối chiếu Raw Rows"}
-        P -- "Bịa đặt số/thực thể" --> Q("Retry format 1 lần / Fallback")
-        Q -- "Thử lại format" --> O
-        Q -- "Hết lượt / Thất bại" --> Z
-        P -- "Khớp hoàn toàn" --> R("Đóng gói EvidencePack & AnswerEnvelope")
+        L[("PostgreSQL: Thực thi tài khoản ReadOnly, Timeout 5s")]
+        M{"Raw Rows"}
+        N["Sử dụng Template tĩnh"]
+        O["LiteLLM: Format tiếng Việt tự nhiên"]
+        P{"Grounding: Đối chiếu Raw Rows"}
+        Q["Retry format 1 lần / Fallback"]
+        R["Đóng gói EvidencePack & AnswerEnvelope"]
+        L --> M
+        M -->|Rỗng 0 dòng| N
+        M -->|Có dữ liệu| O
+        O --> P
+        P -->|Bịa đặt số / thực thể| Q
+        Q -->|Thử lại format| O
+        P -->|Khớp hoàn toàn| R
     end
 
     %% ==========================================
     %% BƯỚC 9: TRẢ KẾT QUẢ & TRACING
     %% ==========================================
     subgraph SG6 ["Bước 9: Trả kết quả & Tracing"]
-        R --> S("HTML Sanitize (DOMPurify/Bleach)")
+        S["HTML Sanitize (DOMPurify/Bleach)"]
+        T(["Widget: Hiển thị kết quả & Bằng chứng"])
+        U[("Redis: Set Cache mới")]
+        V[("Langfuse: Ghi Trace & Token Cost")]
+        R --> S
         N --> S
-        S --> T(["Widget: Hiển thị kết quả & Bằng chứng"])
-        S -.->|"Chỉ cache khi Grounding PASS"| U[("Redis: Set Cache mới")]
-        T --> V[("Langfuse: Ghi Trace & Token Cost")]
-        Z --> T
-        Z -.->|"Ghi trace Fallback/Error"| V
+        S --> T
+        S -.->|Chỉ cache khi Grounding PASS| U
+        T --> V
     end
+
+    %% ==========================================
+    %% LUỒNG FALLBACK AN TOÀN
+    %% ==========================================
+    Z(["Luồng Fallback an toàn"])
+
+    %% ==========================================
+    %% LIÊN KẾT GIỮA CÁC BƯỚC (CROSS-STEP FLOWS)
+    %% ==========================================
+    C -->|Cho phép| D
+    C -->|Từ chối| Z
+
+    D -->|Trúng Cache p95 dưới 20ms| T
+    D -->|Trượt Cache| E
+
+    G -->|Chuẩn JSON| I
+    H -->|Hết lượt retry| Z
+
+    J -->|Lệnh cấm DDL/DML| Z
+    K --> L
+
+    Q -->|Hết lượt / Thất bại| Z
+
+    Z --> T
+    Z -.->|Ghi trace Fallback/Error| V
 
     %% ==========================================
     %% STYLING & CLASS DEFINITIONS
